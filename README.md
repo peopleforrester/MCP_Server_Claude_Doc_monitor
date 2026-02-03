@@ -1,5 +1,7 @@
 # Content Freshness System
 
+[![CI](https://github.com/peopleforrester/MCP_Server_Claude_Doc_monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/peopleforrester/MCP_Server_Claude_Doc_monitor/actions/workflows/ci.yml)
+
 Claude-powered training content drift detection system.
 
 ## Overview
