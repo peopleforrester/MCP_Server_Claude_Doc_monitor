@@ -1,13 +1,26 @@
 {
   "doc_sources": {
-    "api": "https://docs.anthropic.com/en/api/getting-started",
-    "models": "https://docs.anthropic.com/en/docs/about-claude/models",
-    "messages": "https://docs.anthropic.com/en/api/messages",
+    "api-getting-started": "https://docs.anthropic.com/en/api/getting-started",
+    "api-messages": "https://docs.anthropic.com/en/api/messages",
+    "api-messages-streaming": "https://docs.anthropic.com/en/api/messages-streaming",
+    "api-rate-limits": "https://docs.anthropic.com/en/api/rate-limits",
+    "api-errors": "https://docs.anthropic.com/en/api/errors",
+    "api-versioning": "https://docs.anthropic.com/en/api/versioning",
+    "models-overview": "https://docs.anthropic.com/en/docs/about-claude/models",
+    "models-compare": "https://docs.anthropic.com/en/docs/about-claude/models/model-comparison",
+    "context-windows": "https://docs.anthropic.com/en/docs/build-with-claude/context-windows",
     "vision": "https://docs.anthropic.com/en/docs/build-with-claude/vision",
-    "context": "https://docs.anthropic.com/en/docs/build-with-claude/context-windows",
-    "rate-limits": "https://docs.anthropic.com/en/api/rate-limits"
+    "pdf-support": "https://docs.anthropic.com/en/docs/build-with-claude/pdf-support",
+    "prompt-caching": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching",
+    "tool-use": "https://docs.anthropic.com/en/docs/build-with-claude/tool-use",
+    "system-prompts": "https://docs.anthropic.com/en/docs/build-with-claude/system-prompts",
+    "streaming": "https://docs.anthropic.com/en/docs/build-with-claude/streaming",
+    "token-counting": "https://docs.anthropic.com/en/docs/build-with-claude/token-counting",
+    "extended-thinking": "https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking",
+    "multilingual": "https://docs.anthropic.com/en/docs/build-with-claude/multilingual",
+    "pricing": "https://docs.anthropic.com/en/docs/about-claude/pricing"
   },
   "changelog_url": "https://docs.anthropic.com/en/docs/resources/changelog",
-  "fetch_timeout": 30,
+  "fetch_timeout": 45,
   "analysis_model": "claude-sonnet-4-20250514"
 }

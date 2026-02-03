@@ -155,7 +155,7 @@ class TestDefaultConfig:
     def test_default_config_has_doc_sources(self) -> None:
         """Default config should include doc sources."""
         assert "doc_sources" in DEFAULT_CONFIG
-        assert len(DEFAULT_CONFIG["doc_sources"]) >= 6
+        assert len(DEFAULT_CONFIG["doc_sources"]) >= 19
 
     def test_default_config_has_anthropic_urls(self) -> None:
         """Default doc sources should point to Anthropic docs."""
