@@ -130,6 +130,14 @@ class TestCliHelp:
 
         assert "--output" in result.output or "-o" in result.output
 
+    def test_cli_has_version_option(self) -> None:
+        """CLI should respond to --version."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--version"])
+
+        assert result.exit_code == 0
+        assert "1.0.1" in result.output
+
 
 class TestCliIntegration:
     """Integration tests for CLI workflow."""

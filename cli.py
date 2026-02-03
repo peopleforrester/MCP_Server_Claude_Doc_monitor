@@ -8,6 +8,8 @@ from typing import List, Optional
 
 import click
 
+__version__ = "1.0.1"
+
 from analyzer.input_handler import load_markdown_file, parse_sections, extract_claims, Claim
 from analyzer.drift_detector import analyze_claim, DriftResult
 from analyzer.report_generator import generate_report
@@ -125,6 +127,7 @@ async def run_analysis(
 
 
 @click.command()
+@click.version_option(version=__version__, prog_name="content-freshness-system")
 @click.argument("input_file", type=click.Path(exists=True, path_type=Path))
 @click.option(
     "-o", "--output",
