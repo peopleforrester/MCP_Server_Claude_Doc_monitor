@@ -1,0 +1,99 @@
+# Content Freshness System - Anki Flashcards
+# Import into Anki: File > Import, select Tab as separator
+# Format: Front	Back
+
+What is the Content Freshness System?	A Claude-powered tool that automatically detects when training content about Claude has drifted from current official documentation.
+
+What problem does the Content Freshness System solve?	Training content goes stale as Claude's capabilities evolve. Manual review doesn't scale. This system automates drift detection by comparing training materials against current documentation.
+
+What is the core workflow of the Content Freshness System?	[Training Doc] → [Claim Extraction] → [Fetch Current Docs] → [Claude Analysis] → [Drift Report]
+
+What are the four drift classification statuses?	CURRENT (matches docs), OUTDATED (contradicts docs), POTENTIALLY_STALE (may be outdated), UNVERIFIABLE (can't find docs to verify)
+
+What does CURRENT status mean in drift classification?	The claim matches current official documentation - no update needed.
+
+What does OUTDATED status mean in drift classification?	The claim directly contradicts current documentation and needs to be updated.
+
+What does POTENTIALLY_STALE status mean in drift classification?	The claim may be outdated but cannot be definitively determined - manual review recommended.
+
+What does UNVERIFIABLE status mean in drift classification?	Cannot find relevant documentation to verify the claim.
+
+What are the main components of the Content Freshness System?	Input Handler, Doc Fetcher (MCP tools), Drift Analyzer (Claude API), Report Generator, CLI
+
+What does the Input Handler do?	Parses markdown training documents, splits into sections by headers, and extracts capability claims using regex patterns.
+
+What types of claims does the Input Handler extract?	"Claude can/supports..." statements, API parameter mentions, numeric limits (tokens, rate limits), context window mentions, capability statements.
+
+How many documentation sources does the system fetch by default?	19 documentation pages from docs.anthropic.com covering API, models, features, and pricing.
+
+What tool is used for HTTP requests to fetch documentation?	httpx with async support (AsyncClient)
+
+What does the EnhancedHTMLTextExtractor do?	Parses HTML from Anthropic docs, extracts text content while preserving structure from tables, code blocks, and lists in markdown format.
+
+What Claude model does the Drift Analyzer use by default?	claude-sonnet-4-20250514 (configurable via config.json)
+
+What format does the Drift Analyzer expect Claude to return?	JSON object with: status, reasoning, source_reference, suggested_update
+
+What does the Report Generator output?	A markdown report with: summary counts, analysis table, recommended updates with line references, and source links.
+
+How do you run the Content Freshness System CLI?	uv run python cli.py <input-file.md> [-o output.md] [-c config.json] [-v]
+
+What does the -v/--verbose flag do in the CLI?	Shows detailed progress information including percentage completion for fetching docs and analyzing claims.
+
+What does the -c/--config flag do in the CLI?	Specifies a custom config file path (default: config.json in current directory)
+
+What does the -o/--output flag do in the CLI?	Specifies output file path for the report (default: stdout)
+
+What is the config.json file used for?	Configuring doc_sources (URLs), changelog_url, fetch_timeout (seconds), and analysis_model.
+
+How do you add custom documentation sources?	Add entries to the "doc_sources" object in config.json with topic name as key and URL as value.
+
+What is the default fetch timeout?	45 seconds (configurable in config.json)
+
+What Python version is required?	Python 3.13+
+
+What package manager does the project use?	uv (astral-sh/uv)
+
+How do you install dependencies?	uv sync
+
+How do you run the tests?	uv run pytest
+
+How many tests does the project have?	78 unit tests covering all components
+
+What testing approach was used to build this project?	Test-Driven Development (TDD) - tests written before implementation
+
+What license is the project under?	Apache License 2.0
+
+What CI system does the project use?	GitHub Actions with test and lint jobs
+
+What does the CI workflow test?	pytest (78 tests), mypy type checking, ruff linting
+
+What is a Claim in the codebase?	A dataclass with text, section_title, and line_number representing an extracted capability statement.
+
+What is a Section in the codebase?	A dataclass with title, content, level (header depth), and start_line representing a parsed markdown section.
+
+What is a DocSection in the codebase?	A dataclass with title, content, and source_url representing fetched documentation.
+
+What is a DriftResult in the codebase?	A dataclass containing claim_text, section_title, line_number, status, reasoning, source_reference, and suggested_update.
+
+What is a DriftReport in the codebase?	A dataclass with source_file, generated_at, results list, and summary dict, plus a to_markdown() method.
+
+What regex patterns does claim extraction look for?	Claude can/supports/has, API parameter usage, numeric limits (max/limit + number + tokens), context window mentions, rate limits, vision/streaming capabilities.
+
+How does the system handle HTTP errors when fetching docs?	Raises exceptions on HTTP errors; CLI catches and reports them, continuing with other sources if possible.
+
+What happens if no claims are found in the input document?	Generates an empty report with zero claims analyzed.
+
+What happens if no documentation can be fetched?	CLI exits with error: "Could not fetch any reference documentation."
+
+How are claims analyzed against documentation?	Each claim is sent to Claude API along with all fetched documentation; Claude classifies and provides reasoning.
+
+What is the ANALYSIS_PROMPT used for?	A structured prompt template that instructs Claude to compare a claim against documentation and return JSON classification.
+
+How does the report show recommended updates?	Lists each outdated claim with: line number, section, current claim text, suggested update, and reference URL.
+
+What Git workflow does the project use?	staging branch for development, main branch for production; PRs from feature branches to staging.
+
+How do you check the CLI version?	uv run python cli.py --version
+
+What is the current version of the project?	1.0.1
