@@ -136,7 +136,7 @@ class TestCliHelp:
         result = runner.invoke(cli, ["--version"])
 
         assert result.exit_code == 0
-        assert "1.0.1" in result.output
+        assert "1.0.2" in result.output
 
 
 class TestCliIntegration:

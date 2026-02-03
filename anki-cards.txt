@@ -96,4 +96,4 @@ What Git workflow does the project use?	staging branch for development, main bra
 
 How do you check the CLI version?	uv run python cli.py --version
 
-What is the current version of the project?	1.0.1
+What is the current version of the project?	1.0.2
