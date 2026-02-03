@@ -1,32 +1,34 @@
 # Drift Analysis Report
 
 **Source File:** sample_input/outdated-training-doc.md
-**Generated:** 2026-02-02 19:30:00
+**Generated:** 2026-02-02 20:04:10
 
 ## Summary
 
 Total claims analyzed: **11**
 
-- Current: 3
-- Potentially Stale: 1
-- Outdated: 6
-- Unverifiable: 1
+- Current: 4
+- Potentially Stale: 0
+- Outdated: 5
+- Unverifiable: 2
 
 ## Analysis Results
 
 | Section | Claim | Status | Notes |
 |---------|-------|--------|-------|
-| Available Models | Claude Instant supports up to 100k tokens. | OUTDATED | Claude 3 models now support 200k tokens |
-| Context Windows | Claude supports a maximum context window of 100k tokens. | OUTDATED | Context window increased to 200k tokens |
-| Context Windows | Claude can process up to 100,000 tokens in a single request. | OUTDATED | Now supports 200,000 tokens |
-| API Usage | To make an API call, use the `/v1/complete` endpoint... | OUTDATED | Endpoint changed to /v1/messages |
-| System Prompts | Use the `system` parameter to set the system prompt... | CURRENT | Verified against current API docs |
-| Parameters | max_tokens_to_sample: Maximum output length | OUTDATED | Parameter renamed to max_tokens |
-| Rate Limits | rate limit of 60 requests per minute | POTENTIALLY_STALE | Rate limits vary by tier and model |
-| Vision Capabilities | Claude can analyze images. | CURRENT | Vision capability confirmed |
-| Vision Capabilities | Pass images using base64 encoding in the `image` parameter. | OUTDATED | Images now passed in content array |
-| Best Practices | Claude supports up to 4096 tokens of output | CURRENT | Output limit confirmed |
-| Pricing | Input: $11.02 per million tokens | UNVERIFIABLE | Pricing varies by model |
+| Getting Started | The API provides programmatic access to Claude's capabilitie... | CURRENT | The claim is directly supported by the current documentation. The API overview e |
+| Available Models | Claude Instant supports up to 100k tokens. | OUTDATED | The claim states that Claude Instant supports up to 100k tokens, but the current |
+| Context Windows | Claude supports a maximum context window of 100k tokens. | OUTDATED | The claim states Claude supports a maximum context window of 100k tokens, but th |
+| Context Windows | When working with long documents, Claude can process up to 1... | OUTDATED | The claim states Claude can process up to 100,000 tokens in a single request, bu |
+| System Prompts | Use the `system` parameter to set the system prompt in your ... | CURRENT | The claim is accurate. The prompt caching documentation shows a clear example of |
+| Parameters | Key parameters for the completion API:
+- `max_tokens_to_samp... | OUTDATED | The claim describes parameters from an older completion API format. The current  |
+| Rate Limits | The API has a rate limit of 60 requests per minute for the f... | UNVERIFIABLE | The documentation contains a rate limits page that discusses rate limits in gene |
+| Rate Limits | For enterprise customers, rate limits are 1000 requests per ... | UNVERIFIABLE | The documentation contains information about rate limits in general but does not |
+| Vision Capabilities | Claude can analyze images. | CURRENT | The documentation clearly confirms that Claude can analyze images. The 'Vision'  |
+| Vision Capabilities | The API supports vision capabilities for image analysis and ... | CURRENT | The documentation clearly confirms that the API supports vision capabilities for |
+| Best Practices | Claude supports up to 4096 tokens of output per response
+4. | OUTDATED | The claim states Claude supports up to 4096 tokens of output per response, but t |
 
 ## Recommended Updates
 
@@ -34,7 +36,7 @@ Total claims analyzed: **11**
 
 **Current claim:** Claude Instant supports up to 100k tokens.
 
-**Suggested update:** Claude 3 models support up to 200k tokens in context window.
+**Suggested update:** Claude Instant is no longer available. Current models include Claude Sonnet 4.5, Claude Haiku 4.5, and Claude Opus 4.5, which support context windows of 200K tokens (with 1M tokens available in beta for Haiku 4.5).
 
 **Reference:** https://docs.anthropic.com/en/docs/about-claude/models
 
@@ -42,7 +44,7 @@ Total claims analyzed: **11**
 
 **Current claim:** Claude supports a maximum context window of 100k tokens.
 
-**Suggested update:** Claude supports a maximum context window of 200k tokens.
+**Suggested update:** Claude supports context windows of 200K tokens for most models, with Claude Haiku 4.5 supporting up to 1M tokens (beta).
 
 **Reference:** https://docs.anthropic.com/en/docs/about-claude/models
 
@@ -50,40 +52,40 @@ Total claims analyzed: **11**
 
 **Current claim:** When working with long documents, Claude can process up to 100,000 tokens in a single request.
 
-**Suggested update:** Claude can process up to 200,000 tokens in a single request.
+**Suggested update:** When working with long documents, Claude can process up to 200,000 tokens in a single request for most models, with Claude Haiku 4.5 supporting up to 1 million tokens (beta).
 
 **Reference:** https://docs.anthropic.com/en/docs/about-claude/models
 
-### 4. Line 29: API Usage
+### 4. Line 45: Parameters
 
-**Current claim:** To make an API call, use the `/v1/complete` endpoint with your prompt in the `prompt` parameter.
+**Current claim:** Key parameters for the completion API:
+- `max_tokens_to_sample`: Maximum output length (default: 256)
+- `temperature`: Controls randomness (0.0 to 1.0)
+- `stop_sequences`: List of strings that stop generation
 
-**Suggested update:** Use the `/v1/messages` endpoint with the messages array format.
+The API supports streaming responses via the `stream` parameter.
 
-**Reference:** https://docs.anthropic.com/en/api/messages
+**Suggested update:** Key parameters for the Messages API:
+- `max_tokens`: Maximum output length (required parameter)
+- `temperature`: Controls randomness (0.0 to 1.0)
+- `stop_sequences`: List of strings that stop generation
 
-### 5. Line 44: Parameters
+The API supports streaming responses via the `stream` parameter set to true.
 
-**Current claim:** max_tokens_to_sample: Maximum output length (default: 256)
+**Reference:** https://docs.anthropic.com/en/api/getting-started
 
-**Suggested update:** Use `max_tokens` parameter to set maximum output length.
+### 5. Line 71: Best Practices
 
-**Reference:** https://docs.anthropic.com/en/api/messages
+**Current claim:** Claude supports up to 4096 tokens of output per response
+4.
 
-### 6. Line 60: Vision Capabilities
+**Suggested update:** Claude supports up to 64,000 tokens of output per response
 
-**Current claim:** Pass images using base64 encoding in the `image` parameter.
-
-**Suggested update:** Pass images as content blocks with type "image" containing base64 data or URL.
-
-**Reference:** https://docs.anthropic.com/en/docs/build-with-claude/vision
-
-## Potentially Stale (Manual Review Recommended)
-
-- Line 50: The API has a rate limit of 60 requests per minute for the free tier.
+**Reference:** https://docs.anthropic.com/en/docs/about-claude/models
 
 ## Unverifiable Claims
 
 *These claims could not be verified against current documentation:*
 
-- Line 66: Claude API pricing is based on tokens: Input: $11.02 per million tokens
+- Line 54: The API has a rate limit of 60 requests per minute for the free tier.
+- Line 55: For enterprise customers, rate limits are 1000 requests per minute.
