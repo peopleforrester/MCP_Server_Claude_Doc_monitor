@@ -12,15 +12,20 @@ from analyzer.input_handler import load_markdown_file, parse_sections, extract_c
 from analyzer.drift_detector import analyze_claim, DriftResult
 from analyzer.report_generator import generate_report
 from mcp_server.tools.fetch_docs import fetch_current_docs, DocSection
+from config import get_doc_sources
 
 
-async def fetch_reference_docs(verbose: bool = False) -> List[DocSection]:
+async def fetch_reference_docs(
+    verbose: bool = False,
+    config_path: Optional[Path] = None
+) -> List[DocSection]:
     """Fetch all reference documentation."""
     if verbose:
         click.echo("Fetching reference documentation...")
 
     all_docs: List[DocSection] = []
-    topics = ["api", "models", "context", "rate-limits"]
+    doc_sources = get_doc_sources(config_path)
+    topics = list(doc_sources.keys())
 
     for i, topic in enumerate(topics):
         if verbose:
@@ -28,7 +33,7 @@ async def fetch_reference_docs(verbose: bool = False) -> List[DocSection]:
             click.echo(f"  [{progress:.0f}%] Fetching {topic} docs...")
 
         try:
-            docs = await fetch_current_docs(topic)
+            docs = await fetch_current_docs(topic, config_path)
             all_docs.extend(docs)
         except Exception as e:
             if verbose:
@@ -43,7 +48,8 @@ async def fetch_reference_docs(verbose: bool = False) -> List[DocSection]:
 async def analyze_claims(
     claims: List[Claim],
     docs: List[DocSection],
-    verbose: bool = False
+    verbose: bool = False,
+    config_path: Optional[Path] = None
 ) -> List[DriftResult]:
     """Analyze all claims against documentation."""
     if verbose:
@@ -58,7 +64,7 @@ async def analyze_claims(
             click.echo(f"  [{progress:.0f}%] Analyzing: {claim.text[:50]}...")
 
         try:
-            result = await analyze_claim(claim, docs)
+            result = await analyze_claim(claim, docs, config_path)
             results.append(result)
         except Exception as e:
             if verbose:
@@ -69,7 +75,8 @@ async def analyze_claims(
 
 async def run_analysis(
     input_file: Path,
-    verbose: bool = False
+    verbose: bool = False,
+    config_path: Optional[Path] = None
 ) -> str:
     """
     Run the complete analysis pipeline.
@@ -77,6 +84,7 @@ async def run_analysis(
     Args:
         input_file: Path to the markdown file to analyze.
         verbose: Whether to print progress information.
+        config_path: Optional path to config file.
 
     Returns:
         Markdown-formatted drift report.
@@ -99,14 +107,14 @@ async def run_analysis(
         return report.to_markdown()
 
     # Fetch reference documentation
-    docs = await fetch_reference_docs(verbose)
+    docs = await fetch_reference_docs(verbose, config_path)
 
     if not docs:
         click.echo("Error: Could not fetch any reference documentation.", err=True)
         sys.exit(1)
 
     # Analyze claims
-    results = await analyze_claims(claims, docs, verbose)
+    results = await analyze_claims(claims, docs, verbose, config_path)
 
     # Generate report
     if verbose:
@@ -124,19 +132,40 @@ async def run_analysis(
     help="Output file path (default: stdout)"
 )
 @click.option(
+    "-c", "--config",
+    type=click.Path(exists=True, path_type=Path),
+    help="Path to config file (default: config.json in current directory)"
+)
+@click.option(
     "-v", "--verbose",
     is_flag=True,
     help="Show detailed progress information"
 )
-def cli(input_file: Path, output: Optional[Path], verbose: bool) -> None:
+def cli(
+    input_file: Path,
+    output: Optional[Path],
+    config: Optional[Path],
+    verbose: bool
+) -> None:
     """
     Analyze training content for drift from current Claude documentation.
 
     INPUT_FILE is the markdown file containing training content to analyze.
+
+    Use --config to specify custom documentation sources.
     """
+    # Use default config.json if exists and no config specified
+    if config is None:
+        default_config = Path("config.json")
+        if default_config.exists():
+            config = default_config
+
+    if verbose and config:
+        click.echo(f"Using config: {config}")
+
     try:
         # Run the async analysis
-        report_content = asyncio.run(run_analysis(input_file, verbose))
+        report_content = asyncio.run(run_analysis(input_file, verbose, config))
 
         # Output the report
         if output:

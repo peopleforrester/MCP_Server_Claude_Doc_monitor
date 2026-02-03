@@ -17,7 +17,7 @@ Training content about Claude goes stale as capabilities evolve. This system aut
 ## Components
 
 - **Input Handler**: Parses training documents and extracts capability claims
-- **Doc Fetcher**: Fetches current Claude documentation from docs.anthropic.com
+- **Doc Fetcher**: Fetches current Claude documentation from configurable URLs
 - **Drift Analyzer**: Claude-powered comparison engine
 - **Report Generator**: Produces actionable drift reports
 
@@ -58,8 +58,72 @@ uv run python cli.py training-content.md -o drift-report.md
 # Verbose mode with progress indicators
 uv run python cli.py training-content.md --verbose
 
+# Use custom config file
+uv run python cli.py training-content.md -c my-config.json
+
 # Analyze the sample document
 uv run python cli.py sample_input/outdated-training-doc.md -v
+```
+
+## Configuration
+
+The system uses a JSON configuration file to specify documentation sources and settings. By default, it looks for `config.json` in the current directory.
+
+### Config File Format
+
+```json
+{
+  "doc_sources": {
+    "api": "https://docs.anthropic.com/en/api/getting-started",
+    "models": "https://docs.anthropic.com/en/docs/about-claude/models",
+    "messages": "https://docs.anthropic.com/en/api/messages",
+    "vision": "https://docs.anthropic.com/en/docs/build-with-claude/vision",
+    "context": "https://docs.anthropic.com/en/docs/build-with-claude/context-windows",
+    "rate-limits": "https://docs.anthropic.com/en/api/rate-limits"
+  },
+  "changelog_url": "https://docs.anthropic.com/en/docs/resources/changelog",
+  "fetch_timeout": 30,
+  "analysis_model": "claude-sonnet-4-20250514"
+}
+```
+
+### Configuration Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `doc_sources` | object | Map of topic names to documentation URLs |
+| `changelog_url` | string | URL to the changelog page |
+| `fetch_timeout` | integer | HTTP request timeout in seconds |
+| `analysis_model` | string | Claude model to use for analysis |
+
+### Adding Custom Documentation Sources
+
+To monitor additional documentation pages, add entries to `doc_sources`:
+
+```json
+{
+  "doc_sources": {
+    "api": "https://docs.anthropic.com/en/api/getting-started",
+    "custom-topic": "https://docs.anthropic.com/en/docs/your-custom-page"
+  }
+}
+```
+
+### Using a Custom Config
+
+```bash
+# Create custom config
+cat > my-config.json << 'EOF'
+{
+  "doc_sources": {
+    "api": "https://docs.anthropic.com/en/api/getting-started"
+  },
+  "fetch_timeout": 60
+}
+EOF
+
+# Run with custom config
+uv run python cli.py training-doc.md -c my-config.json
 ```
 
 ## Example Output
@@ -85,19 +149,21 @@ The report includes:
 
 ```
 content-freshness-system/
+├── config.json             # Default configuration
+├── config.py               # Configuration loader
+├── cli.py                  # Command-line interface
 ├── analyzer/
 │   ├── input_handler.py    # Parse markdown and extract claims
 │   ├── drift_detector.py   # Claude-powered analysis
 │   └── report_generator.py # Generate drift reports
 ├── mcp_server/
 │   └── tools/
-│       ├── fetch_docs.py   # Doc fetching from docs.anthropic.com
+│       ├── fetch_docs.py   # Doc fetching from configured URLs
 │       ├── get_changelog.py# Changelog retrieval
 │       └── search_docs.py  # Search across documentation
-├── tests/                  # 64 unit tests
+├── tests/                  # 77 unit tests
 ├── sample_input/           # Example training doc with outdated claims
-├── sample_output/          # Example drift report
-└── cli.py                  # Command-line interface
+└── sample_output/          # Example drift report
 ```
 
 ## Development
@@ -110,7 +176,7 @@ uv run pytest
 uv run pytest -v
 
 # Run specific test file
-uv run pytest tests/test_input_handler.py
+uv run pytest tests/test_config.py
 ```
 
 ## License

@@ -4,10 +4,13 @@
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import List
+from pathlib import Path
+from typing import List, Optional
 from html.parser import HTMLParser
 
 import httpx
+
+from config import get_changelog_url, get_fetch_timeout, DEFAULT_CONFIG
 
 
 @dataclass
@@ -20,8 +23,8 @@ class ChangelogEntry:
     source_url: str
 
 
-# Changelog source URL
-CHANGELOG_URL = "https://docs.anthropic.com/en/docs/resources/changelog"
+# For backwards compatibility
+CHANGELOG_URL = DEFAULT_CONFIG["changelog_url"]
 
 
 class ChangelogParser(HTMLParser):
@@ -103,22 +106,29 @@ def _is_within_days(date_str: str, days: int) -> bool:
         return True
 
 
-async def get_recent_changes(days: int = 30) -> List[ChangelogEntry]:
+async def get_recent_changes(
+    days: int = 30,
+    config_path: Optional[Path] = None
+) -> List[ChangelogEntry]:
     """
     Fetch recent changes from the Anthropic changelog.
 
     Args:
         days: Number of days to look back for changes.
+        config_path: Optional path to config file.
 
     Returns:
         List of ChangelogEntry objects for recent changes.
     """
+    changelog_url = get_changelog_url(config_path)
+    timeout = get_fetch_timeout(config_path)
+
     async with httpx.AsyncClient(
-        timeout=30.0,
+        timeout=float(timeout),
         follow_redirects=True,
         headers={"User-Agent": "ContentFreshnessSystem/1.0"}
     ) as client:
-        response = await client.get(CHANGELOG_URL)
+        response = await client.get(changelog_url)
         response.raise_for_status()
 
         parser = ChangelogParser()
@@ -137,7 +147,7 @@ async def get_recent_changes(days: int = 30) -> List[ChangelogEntry]:
                 date=entry_dict.get("date", ""),
                 title=entry_dict.get("title", "Update"),
                 description=entry_dict.get("description", ""),
-                source_url=CHANGELOG_URL
+                source_url=changelog_url
             ))
 
         return entries

@@ -1,12 +1,14 @@
 # ABOUTME: Tool for fetching current Claude documentation from Anthropic.
 # ABOUTME: Retrieves and parses documentation pages for comparison.
 
-import re
 from dataclasses import dataclass
-from typing import List, Dict
+from pathlib import Path
+from typing import List, Dict, Optional
 from html.parser import HTMLParser
 
 import httpx
+
+from config import get_doc_sources, get_fetch_timeout, DEFAULT_CONFIG
 
 
 @dataclass
@@ -18,15 +20,8 @@ class DocSection:
     source_url: str
 
 
-# Hardcoded documentation sources for MVP
-DOC_SOURCES: Dict[str, str] = {
-    "api": "https://docs.anthropic.com/en/api/getting-started",
-    "models": "https://docs.anthropic.com/en/docs/about-claude/models",
-    "messages": "https://docs.anthropic.com/en/api/messages",
-    "vision": "https://docs.anthropic.com/en/docs/build-with-claude/vision",
-    "context": "https://docs.anthropic.com/en/docs/build-with-claude/context-windows",
-    "rate-limits": "https://docs.anthropic.com/en/api/rate-limits",
-}
+# For backwards compatibility, expose DOC_SOURCES from config
+DOC_SOURCES: Dict[str, str] = DEFAULT_CONFIG["doc_sources"]
 
 
 class SimpleHTMLTextExtractor(HTMLParser):
@@ -68,30 +63,38 @@ class SimpleHTMLTextExtractor(HTMLParser):
         return self.current_title or "Documentation"
 
 
-def _get_relevant_urls(topic: str) -> List[str]:
+def _get_relevant_urls(
+    topic: str,
+    config_path: Optional[Path] = None
+) -> List[str]:
     """Get URLs relevant to the requested topic."""
+    doc_sources = get_doc_sources(config_path)
     topic_lower = topic.lower()
 
     # Direct match
-    if topic_lower in DOC_SOURCES:
-        return [DOC_SOURCES[topic_lower]]
+    if topic_lower in doc_sources:
+        return [doc_sources[topic_lower]]
 
     # Partial matches
     relevant = []
-    for key, url in DOC_SOURCES.items():
+    for key, url in doc_sources.items():
         if topic_lower in key or key in topic_lower:
             relevant.append(url)
 
     # If no matches, return all sources
-    return relevant if relevant else list(DOC_SOURCES.values())
+    return relevant if relevant else list(doc_sources.values())
 
 
-async def fetch_current_docs(topic: str) -> List[DocSection]:
+async def fetch_current_docs(
+    topic: str,
+    config_path: Optional[Path] = None
+) -> List[DocSection]:
     """
     Fetch current Claude documentation for a given topic.
 
     Args:
         topic: The topic to fetch documentation for (e.g., "api", "models").
+        config_path: Optional path to config file with custom doc sources.
 
     Returns:
         List of DocSection objects containing the documentation.
@@ -99,11 +102,12 @@ async def fetch_current_docs(topic: str) -> List[DocSection]:
     Raises:
         Exception: If HTTP request fails.
     """
-    urls = _get_relevant_urls(topic)
+    urls = _get_relevant_urls(topic, config_path)
+    timeout = get_fetch_timeout(config_path)
     sections: List[DocSection] = []
 
     async with httpx.AsyncClient(
-        timeout=30.0,
+        timeout=float(timeout),
         follow_redirects=True,
         headers={"User-Agent": "ContentFreshnessSystem/1.0"}
     ) as client:

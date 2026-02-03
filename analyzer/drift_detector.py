@@ -2,15 +2,16 @@
 # ABOUTME: Uses Claude API to analyze and classify content freshness.
 
 import json
-import os
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import List, Optional
 
 import anthropic
 
 from analyzer.input_handler import Claim
 from mcp_server.tools.fetch_docs import DocSection
+from config import get_analysis_model
 
 
 class DriftStatus(Enum):
@@ -84,7 +85,8 @@ def _parse_analysis_response(response_text: str) -> dict:
 
 async def analyze_claim(
     claim: Claim,
-    docs: List[DocSection]
+    docs: List[DocSection],
+    config_path: Optional[Path] = None
 ) -> DriftResult:
     """
     Analyze a claim against current documentation using Claude.
@@ -92,6 +94,7 @@ async def analyze_claim(
     Args:
         claim: The claim to analyze.
         docs: Current documentation sections to compare against.
+        config_path: Optional path to config file.
 
     Returns:
         DriftResult with classification and reasoning.
@@ -100,6 +103,7 @@ async def analyze_claim(
         Exception: If API call fails.
     """
     client = anthropic.AsyncAnthropic()
+    model = get_analysis_model(config_path)
 
     docs_content = _format_docs_for_prompt(docs)
 
@@ -109,7 +113,7 @@ async def analyze_claim(
     )
 
     message = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=model,
         max_tokens=1024,
         messages=[
             {"role": "user", "content": prompt}
