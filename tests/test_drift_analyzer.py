@@ -3,6 +3,7 @@
 
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
+from anthropic.types import TextBlock
 from analyzer.drift_detector import (
     analyze_claim,
     DriftResult,
@@ -30,7 +31,7 @@ class TestAnalyzeClaim:
         )]
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text="""
+        mock_message.content = [MagicMock(spec=TextBlock, text="""
 {
     "status": "OUTDATED",
     "reasoning": "The claim states 100k tokens but current docs show 200k.",
@@ -63,7 +64,7 @@ class TestAnalyzeClaim:
         )]
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text="""
+        mock_message.content = [MagicMock(spec=TextBlock, text="""
 {
     "status": "OUTDATED",
     "reasoning": "Context window has increased from 100k to 200k.",
@@ -96,7 +97,7 @@ class TestAnalyzeClaim:
         )]
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text="""
+        mock_message.content = [MagicMock(spec=TextBlock, text="""
 {
     "status": "CURRENT",
     "reasoning": "The claim matches current documentation.",
@@ -129,7 +130,7 @@ class TestAnalyzeClaim:
         )]
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text="""
+        mock_message.content = [MagicMock(spec=TextBlock, text="""
 {
     "status": "UNVERIFIABLE",
     "reasoning": "Cannot find documentation about feature X.",
@@ -162,7 +163,7 @@ class TestAnalyzeClaim:
         )]
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text="""
+        mock_message.content = [MagicMock(spec=TextBlock, text="""
 {
     "status": "CURRENT",
     "reasoning": "Vision capability is confirmed in documentation.",
@@ -196,7 +197,7 @@ class TestAnalyzeClaim:
         )]
 
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text="""
+        mock_message.content = [MagicMock(spec=TextBlock, text="""
 {
     "status": "CURRENT",
     "reasoning": "Rate limit matches documentation.",

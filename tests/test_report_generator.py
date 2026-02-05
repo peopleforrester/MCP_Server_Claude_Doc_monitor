@@ -1,7 +1,6 @@
 # ABOUTME: Unit tests for the drift report generator.
 # ABOUTME: Tests markdown report generation from drift results.
 
-import pytest
 from datetime import datetime
 from analyzer.report_generator import (
     generate_report,

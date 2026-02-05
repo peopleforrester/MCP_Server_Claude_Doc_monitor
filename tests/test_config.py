@@ -1,9 +1,11 @@
 # ABOUTME: Unit tests for configuration loading.
 # ABOUTME: Tests loading doc sources from config files.
 
-import pytest
 import json
+import logging
 from pathlib import Path
+
+import pytest
 from config import (
     load_config,
     get_doc_sources,
@@ -49,6 +51,19 @@ class TestLoadConfig:
         assert "custom" in config.doc_sources
         # Should still have default changelog_url
         assert config.changelog_url == DEFAULT_CONFIG["changelog_url"]
+
+    def test_load_config_warns_on_invalid_json(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """Should log a warning when config file has invalid JSON."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text("{ invalid json !!!")
+
+        with caplog.at_level(logging.WARNING, logger="config"):
+            config = load_config(config_file)
+
+        # Should fall back to defaults
+        assert config.doc_sources == DEFAULT_CONFIG["doc_sources"]
+        # Should have logged a warning
+        assert any("Failed to load config" in record.message for record in caplog.records)
 
     def test_load_config_validates_urls(self, tmp_path: Path) -> None:
         """Should validate that doc_sources contains valid URLs."""

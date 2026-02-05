@@ -55,6 +55,7 @@ from typing import List, Optional
 # anthropic: The official Anthropic Python SDK for calling the Claude API.
 # We use AsyncAnthropic for async/await support (non-blocking API calls).
 import anthropic
+from anthropic.types import TextBlock
 
 # Import our custom types from other modules in this project.
 # Claim: Represents an extracted claim from the input document.
@@ -292,7 +293,7 @@ def _parse_analysis_response(response_text: str) -> dict:
         # Filter out lines that start with ``` (the code block markers).
         # This removes both the opening ```json and closing ``` lines.
         # List comprehension: [x for x in list if condition]
-        lines = [l for l in lines if not l.startswith("```")]
+        lines = [line for line in lines if not line.startswith("```")]
 
         # Rejoin the remaining lines
         text = "\n".join(lines)
@@ -383,9 +384,12 @@ async def analyze_claim(
     )
 
     # Extract the response text.
-    # message.content is a list of content blocks.
-    # [0] gets the first block, .text gets its text content.
-    response_text = message.content[0].text
+    # message.content is a list of content blocks (TextBlock, ToolUseBlock, etc.).
+    # We narrow the type to TextBlock to safely access .text.
+    content_block = message.content[0]
+    if not isinstance(content_block, TextBlock):
+        raise ValueError(f"Expected TextBlock response, got {type(content_block).__name__}")
+    response_text = content_block.text
 
     # Parse the JSON response into a dictionary
     analysis = _parse_analysis_response(response_text)

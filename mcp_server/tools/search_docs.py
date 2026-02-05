@@ -40,24 +40,25 @@ But for documentation search, simple substring matching works well enough.
 # IMPORTS
 # =============================================================================
 
-# re: Regular expression module.
-# (Imported for potential future use - not currently used in this file,
-# but included for consistency with other modules.)
-import re
-
 # dataclass: Decorator for creating data container classes.
 from dataclasses import dataclass
 
-# List: Type hint for lists.
-from typing import List
+# Path: Object-oriented filesystem paths for config_path parameter.
+from pathlib import Path
+
+# List, Optional: Type hints for function signatures.
+from typing import List, Optional
 
 # httpx: Modern async HTTP client for Python.
 import httpx
 
-# Import shared utilities from our fetch_docs module.
-# DOC_SOURCES: Dictionary of topic names to documentation URLs
-# SimpleHTMLTextExtractor: HTML parser for extracting text content
-from mcp_server.tools.fetch_docs import DOC_SOURCES, SimpleHTMLTextExtractor
+# Import the HTML parser from our fetch_docs module.
+# EnhancedHTMLTextExtractor: HTML parser for extracting text content
+from mcp_server.tools.fetch_docs import EnhancedHTMLTextExtractor
+
+# Import config getter for documentation sources.
+# get_doc_sources: Returns the configured doc source URLs
+from config import get_doc_sources
 
 
 # =============================================================================
@@ -233,7 +234,10 @@ def _calculate_relevance(text: str, query: str) -> float:
 # MAIN SEARCH FUNCTION
 # =============================================================================
 
-async def search_docs(query: str) -> List[SearchResult]:
+async def search_docs(
+    query: str,
+    config_path: Optional[Path] = None
+) -> List[SearchResult]:
     """
     Search across Claude documentation for matching content.
 
@@ -255,6 +259,7 @@ async def search_docs(query: str) -> List[SearchResult]:
         query: The search query string.
                Case-insensitive.
                Example: "rate limit", "context window", "vision"
+        config_path: Optional path to config file for custom doc sources.
 
     Returns:
         List of SearchResult objects sorted by relevance (highest first).
@@ -271,6 +276,9 @@ async def search_docs(query: str) -> List[SearchResult]:
     # Collect results as we search
     results: List[SearchResult] = []
 
+    # Get configured doc sources (respects custom config if provided)
+    doc_sources = get_doc_sources(config_path)
+
     # Create async HTTP client.
     # Using a shorter timeout (30s) since we're making many requests.
     async with httpx.AsyncClient(
@@ -280,9 +288,9 @@ async def search_docs(query: str) -> List[SearchResult]:
     ) as client:
 
         # Search each documentation source.
-        # DOC_SOURCES is a dict mapping topic names to URLs.
+        # doc_sources is a dict mapping topic names to URLs.
         # .items() gives us (key, value) pairs.
-        for topic, url in DOC_SOURCES.items():
+        for topic, url in doc_sources.items():
             try:
                 # Fetch the documentation page.
                 # await allows other requests to proceed while waiting.
@@ -292,7 +300,7 @@ async def search_docs(query: str) -> List[SearchResult]:
                 response.raise_for_status()
 
                 # Parse the HTML to extract text content
-                parser = SimpleHTMLTextExtractor()
+                parser = EnhancedHTMLTextExtractor()
                 parser.feed(response.text)
                 content = parser.get_text()
 

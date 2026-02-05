@@ -44,6 +44,10 @@ import asyncio
 # We use sys.exit() to set the exit code on error.
 import sys
 
+# tomllib: Standard library TOML parser (Python 3.11+).
+# Used to read the version from pyproject.toml as the single source of truth.
+import tomllib
+
 # Path: Object-oriented filesystem paths.
 # Used for input file and config file handling.
 from pathlib import Path
@@ -62,10 +66,19 @@ import click
 # VERSION
 # =============================================================================
 
-# Version string for the --version flag.
-# This should be updated when releasing new versions.
-# Following semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "1.0.2"
+def _read_version() -> str:
+    """Read project version from pyproject.toml.
+
+    This avoids duplicating the version string in multiple files.
+    pyproject.toml is the single source of truth for the version.
+    """
+    pyproject_path = Path(__file__).parent / "pyproject.toml"
+    with open(pyproject_path, "rb") as f:
+        data = tomllib.load(f)
+    return data["project"]["version"]
+
+
+__version__ = _read_version()
 
 # =============================================================================
 # LOCAL IMPORTS
@@ -196,18 +209,12 @@ async def analyze_claims(
     """
     Analyze all claims against documentation using Claude.
 
-    This function iterates through each claim and sends it to Claude
-    for analysis against the fetched documentation. Each claim is
-    analyzed independently.
+    This function processes claims concurrently using asyncio.gather()
+    with a semaphore to respect API rate limits. Claims are analyzed
+    independently against the fetched documentation.
 
     Progress Indicator:
-    When verbose=True, shows progress percentage and a preview of
-    each claim being analyzed. This is important because API calls
-    can be slow (1-3 seconds each).
-
-    Note: Currently processes claims sequentially. For better performance,
-    could be modified to process claims concurrently with asyncio.gather().
-    However, this would need to respect API rate limits.
+    When verbose=True, shows progress as each claim completes.
 
     Args:
         claims: List of Claim objects extracted from the input document.
@@ -218,47 +225,54 @@ async def analyze_claims(
     Returns:
         List of DriftResult objects, one for each claim analyzed.
         Results are in the same order as input claims.
+        Claims that fail analysis are excluded from results.
 
     Example:
         >>> results = await analyze_claims(claims, docs, verbose=True)
-        Analyzing 15 claims...
-          [7%] Analyzing: Claude can process images and generate descr...
-          [13%] Analyzing: The context window is 200k tokens...
+        Analyzing 15 claims (5 concurrent)...
+          [7%] Analyzed: Claude can process images and generate descr...
+          [13%] Analyzed: The context window is 200k tokens...
           ...
     """
+    # Semaphore limits concurrent API calls to avoid rate limiting.
+    # 5 concurrent requests is a conservative limit for the Anthropic API.
+    max_concurrent = 5
+    semaphore = asyncio.Semaphore(max_concurrent)
+
     # Print initial message if verbose
     if verbose:
-        click.echo(f"Analyzing {len(claims)} claims...")
+        click.echo(f"Analyzing {len(claims)} claims ({max_concurrent} concurrent)...")
 
-    # Initialize results list
-    results: List[DriftResult] = []
-
-    # Get total count for progress calculation
+    # Track progress across concurrent tasks
     total = len(claims)
+    completed = 0
 
-    # Analyze each claim
-    for i, claim in enumerate(claims):
-        # Show progress if verbose
-        if verbose:
-            progress = (i + 1) / total * 100
+    async def analyze_single(claim: Claim) -> Optional[DriftResult]:
+        """Analyze a single claim with semaphore-limited concurrency."""
+        nonlocal completed
+        async with semaphore:
+            try:
+                result = await analyze_claim(claim, docs, config_path)
+                completed += 1
+                if verbose:
+                    progress = completed / total * 100
+                    click.echo(f"  [{progress:.0f}%] Analyzed: {claim.text[:50]}...")
+                return result
+            except Exception as e:
+                completed += 1
+                if verbose:
+                    click.echo(f"  Warning: Could not analyze claim: {e}", err=True)
+                return None
 
-            # Show first 50 characters of claim text with ellipsis.
-            # [:50] takes first 50 chars, + "..." indicates truncation.
-            click.echo(f"  [{progress:.0f}%] Analyzing: {claim.text[:50]}...")
+    # Run all analyses concurrently (limited by semaphore).
+    # asyncio.gather() runs coroutines concurrently and returns results
+    # in the same order as the input.
+    all_results = await asyncio.gather(
+        *(analyze_single(claim) for claim in claims)
+    )
 
-        try:
-            # Send claim to Claude for analysis.
-            # await pauses until the API response arrives.
-            result = await analyze_claim(claim, docs, config_path)
-
-            # Add result to our collection
-            results.append(result)
-
-        except Exception as e:
-            # Handle analysis errors gracefully.
-            # We log and skip problematic claims rather than failing entirely.
-            if verbose:
-                click.echo(f"  Warning: Could not analyze claim: {e}", err=True)
+    # Filter out None results from failed analyses
+    results = [r for r in all_results if r is not None]
 
     return results
 

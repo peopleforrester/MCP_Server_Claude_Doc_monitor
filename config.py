@@ -29,6 +29,10 @@ settings are centralized in a single place and accessed through a clean API.
 # user configuration from config.json files.
 import json
 
+# logging: Standard library module for diagnostic output.
+# Used to warn about config file issues without crashing.
+import logging
+
 # dataclass: A decorator that automatically generates __init__, __repr__, etc.
 # for classes that are primarily used to store data. Makes our Config class cleaner.
 from dataclasses import dataclass
@@ -44,6 +48,8 @@ from pathlib import Path
 # - Any: Any type (used when the type is complex or varies)
 from typing import Dict, Optional, Any
 
+# Module-level logger for configuration warnings and errors.
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # DEFAULT CONFIGURATION
@@ -213,15 +219,16 @@ def load_config(config_path: Optional[Path] = None) -> Config:
             if "analysis_model" in user_config:
                 config_data["analysis_model"] = user_config["analysis_model"]
 
-        except (json.JSONDecodeError, IOError):
+        except (json.JSONDecodeError, IOError) as e:
             # json.JSONDecodeError: The file exists but isn't valid JSON
             # IOError: Some other file reading error occurred
             #
-            # By catching and passing, we fall back to defaults.
-            # This is a design choice: fail silently vs fail loudly.
-            # Pro: System keeps working even with bad config
-            # Con: User might not realize their config isn't being used
-            pass
+            # Log a warning so users know their config isn't being used.
+            # Falls back to defaults to keep the system working.
+            logger.warning(
+                "Failed to load config from %s: %s. Using defaults.",
+                config_path, e
+            )
 
     # Create and return the Config dataclass instance.
     # We explicitly pass each field to make it clear what we're setting.

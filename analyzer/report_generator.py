@@ -34,8 +34,7 @@ The report format is designed to be:
 # =============================================================================
 
 # dataclass: Creates data container classes with auto-generated methods.
-# field: Allows customization of dataclass field defaults.
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 # datetime: For capturing when the report was generated.
 # We include timestamps to track when analysis was done.

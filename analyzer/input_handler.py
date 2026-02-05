@@ -256,7 +256,7 @@ def parse_sections(content: str) -> List[Section]:
                     level=current_section_level,
                     start_line=current_section_start
                 ))
-            elif current_content_lines and any(l.strip() for l in current_content_lines):
+            elif current_content_lines and any(line.strip() for line in current_content_lines):
                 # No header yet, but we have content.
                 # This is content before the first header - treat as introduction.
                 # any(l.strip() for l in ...) checks if any line has non-whitespace.
@@ -289,7 +289,7 @@ def parse_sections(content: str) -> List[Section]:
             level=current_section_level,
             start_line=current_section_start
         ))
-    elif current_content_lines and any(l.strip() for l in current_content_lines):
+    elif current_content_lines and any(line.strip() for line in current_content_lines):
         # Edge case: Document has content but no headers at all
         sections.append(Section(
             title="(Introduction)",

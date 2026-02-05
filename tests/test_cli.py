@@ -1,11 +1,10 @@
 # ABOUTME: Unit tests for the command-line interface.
 # ABOUTME: Tests argument parsing and CLI workflow.
 
-import pytest
 from pathlib import Path
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 from click.testing import CliRunner
-from cli import main, cli
+from cli import cli
 
 
 class TestCliArguments:
@@ -136,7 +135,9 @@ class TestCliHelp:
         result = runner.invoke(cli, ["--version"])
 
         assert result.exit_code == 0
-        assert "1.0.2" in result.output
+        # Version should match what's in pyproject.toml
+        from cli import __version__
+        assert __version__ in result.output
 
 
 class TestCliIntegration:

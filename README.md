@@ -163,7 +163,7 @@ content-freshness-system/
 │       ├── fetch_docs.py   # Doc fetching from configured URLs
 │       ├── get_changelog.py# Changelog retrieval
 │       └── search_docs.py  # Search across documentation
-├── tests/                  # 77 unit tests
+├── tests/                  # 84 unit and integration tests
 ├── sample_input/           # Example training doc with outdated claims
 └── sample_output/          # Example drift report
 ```

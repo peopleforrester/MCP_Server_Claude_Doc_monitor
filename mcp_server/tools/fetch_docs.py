@@ -424,15 +424,6 @@ class EnhancedHTMLTextExtractor(HTMLParser):
 
 
 # =============================================================================
-# BACKWARDS COMPATIBILITY ALIAS
-# =============================================================================
-
-# Old code might import SimpleHTMLTextExtractor.
-# This alias ensures it still works.
-SimpleHTMLTextExtractor = EnhancedHTMLTextExtractor
-
-
-# =============================================================================
 # URL RESOLUTION
 # =============================================================================
 
@@ -563,7 +554,7 @@ async def fetch_current_docs(
 
             # Parse the HTML content.
             # Create a new parser instance for each page.
-            parser = SimpleHTMLTextExtractor()
+            parser = EnhancedHTMLTextExtractor()
 
             # feed() processes the HTML and calls our handle_* methods.
             # response.text is the decoded response body as a string.
