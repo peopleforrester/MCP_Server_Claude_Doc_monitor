@@ -22,5 +22,5 @@
   },
   "changelog_url": "https://docs.anthropic.com/en/docs/resources/changelog",
   "fetch_timeout": 45,
-  "analysis_model": "claude-sonnet-4-20250514"
+  "analysis_model": "claude-sonnet-4-6-20260220"
 }

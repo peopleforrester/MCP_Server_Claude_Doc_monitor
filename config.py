@@ -103,8 +103,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "fetch_timeout": 45,
 
     # analysis_model: The Claude model identifier used for drift analysis.
-    # claude-sonnet-4 is chosen for its balance of speed and accuracy.
-    "analysis_model": "claude-sonnet-4-20250514",
+    # claude-sonnet-4-6 is chosen for its balance of speed and accuracy.
+    "analysis_model": "claude-sonnet-4-6-20260220",
 }
 
 
@@ -368,7 +368,7 @@ def get_analysis_model(config_path: Optional[Path] = None) -> str:
 
     This specifies which Claude model to use when analyzing claims for drift.
     Different models have different capabilities, speeds, and costs.
-    The default (claude-sonnet-4) balances accuracy with response speed.
+    The default (claude-sonnet-4-6) balances accuracy with response speed.
 
     Model ID format: "claude-{variant}-{version}-{date}"
     - variant: haiku, sonnet, opus (increasing capability/cost)
@@ -379,6 +379,6 @@ def get_analysis_model(config_path: Optional[Path] = None) -> str:
         config_path: Optional path to config file.
 
     Returns:
-        Model identifier string (e.g., "claude-sonnet-4-20250514").
+        Model identifier string (e.g., "claude-sonnet-4-6-20260220").
     """
     return _get_config(config_path).analysis_model
