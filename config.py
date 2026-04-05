@@ -65,36 +65,39 @@ DEFAULT_CONFIG: dict[str, Any] = {
     # This makes it easy to map topics to URLs programmatically.
     "doc_sources": {
         # API Documentation - Core endpoint and usage documentation
-        "api-getting-started": "https://docs.anthropic.com/en/api/getting-started",
-        "api-messages": "https://docs.anthropic.com/en/api/messages",
-        "api-messages-streaming": "https://docs.anthropic.com/en/api/messages-streaming",
-        "api-rate-limits": "https://docs.anthropic.com/en/api/rate-limits",
-        "api-errors": "https://docs.anthropic.com/en/api/errors",
-        "api-versioning": "https://docs.anthropic.com/en/api/versioning",
+        "api-getting-started": "https://platform.claude.com/docs/en/api/getting-started",
+        "api-messages": "https://platform.claude.com/docs/en/api/messages",
+        "api-messages-streaming": "https://platform.claude.com/docs/en/api/messages-streaming",
+        "api-rate-limits": "https://platform.claude.com/docs/en/api/rate-limits",
+        "api-errors": "https://platform.claude.com/docs/en/api/errors",
+        "api-versioning": "https://platform.claude.com/docs/en/api/versioning",
 
-        # Model Documentation - Information about Claude models and capabilities
-        "models-overview": "https://docs.anthropic.com/en/docs/about-claude/models",
-        "models-compare": "https://docs.anthropic.com/en/docs/about-claude/models/model-comparison",
+        # Model Documentation - Information about models and capabilities
+        "models-overview": "https://platform.claude.com/docs/en/about-claude/models/overview",
+        "models-compare": "https://platform.claude.com/docs/en/about-claude/models/model-comparison",
 
-        # Feature Documentation - Specific Claude features and how to use them
-        "context-windows": "https://docs.anthropic.com/en/docs/build-with-claude/context-windows",
-        "vision": "https://docs.anthropic.com/en/docs/build-with-claude/vision",
-        "pdf-support": "https://docs.anthropic.com/en/docs/build-with-claude/pdf-support",
-        "prompt-caching": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching",
-        "tool-use": "https://docs.anthropic.com/en/docs/build-with-claude/tool-use",
-        "system-prompts": "https://docs.anthropic.com/en/docs/build-with-claude/system-prompts",
-        "streaming": "https://docs.anthropic.com/en/docs/build-with-claude/streaming",
-        "token-counting": "https://docs.anthropic.com/en/docs/build-with-claude/token-counting",
-        "extended-thinking": "https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking",
-        "multilingual": "https://docs.anthropic.com/en/docs/build-with-claude/multilingual",
+        # Feature Documentation - Specific features and how to use them
+        "context-windows": "https://platform.claude.com/docs/en/build-with-claude/context-windows",
+        "vision": "https://platform.claude.com/docs/en/build-with-claude/vision",
+        "pdf-support": "https://platform.claude.com/docs/en/build-with-claude/pdf-support",
+        "prompt-caching": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "tool-use": "https://platform.claude.com/docs/en/build-with-claude/tool-use",
+        "system-prompts": "https://platform.claude.com/docs/en/build-with-claude/system-prompts",
+        "streaming": "https://platform.claude.com/docs/en/build-with-claude/streaming",
+        "token-counting": "https://platform.claude.com/docs/en/build-with-claude/token-counting",
+        "extended-thinking": "https://platform.claude.com/docs/en/build-with-claude/extended-thinking",
+        "multilingual": "https://platform.claude.com/docs/en/build-with-claude/multilingual",
+        "files": "https://platform.claude.com/docs/en/build-with-claude/files",
+        "batch-processing": "https://platform.claude.com/docs/en/build-with-claude/batch-processing",
+        "citations": "https://platform.claude.com/docs/en/build-with-claude/citations",
+        "mcp": "https://platform.claude.com/docs/en/docs/mcp",
 
         # Pricing Information - Token costs and pricing tiers
-        "pricing": "https://docs.anthropic.com/en/docs/about-claude/pricing",
+        "pricing": "https://platform.claude.com/docs/en/about-claude/pricing",
     },
 
-    # changelog_url: The Anthropic changelog page where they announce updates.
-    # This can be used to check for recent changes that might affect claims.
-    "changelog_url": "https://docs.anthropic.com/en/docs/resources/changelog",
+    # changelog_url: The release notes page where updates are announced.
+    "changelog_url": "https://platform.claude.com/docs/en/release-notes/overview",
 
     # fetch_timeout: Maximum time (in seconds) to wait when fetching a doc page.
     # 45 seconds is generous but prevents hanging on slow/unresponsive servers.
@@ -102,7 +105,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
 
     # analysis_model: The Claude model identifier used for drift analysis.
     # claude-sonnet-4-6 is chosen for its balance of speed and accuracy.
-    "analysis_model": "claude-sonnet-4-6-20260220",
+    "analysis_model": "claude-sonnet-4-6",
 }
 
 
@@ -377,6 +380,6 @@ def get_analysis_model(config_path: Path | None = None) -> str:
         config_path: Optional path to config file.
 
     Returns:
-        Model identifier string (e.g., "claude-sonnet-4-6-20260220").
+        Model identifier string (e.g., "claude-sonnet-4-6").
     """
     return _get_config(config_path).analysis_model
