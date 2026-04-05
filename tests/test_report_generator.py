@@ -2,6 +2,8 @@
 # ABOUTME: Tests markdown report generation from drift results.
 
 from datetime import datetime
+from typing import List
+
 from analyzer.report_generator import (
     generate_report,
     DriftReport,
@@ -54,7 +56,7 @@ class TestGenerateReport:
 
     def test_report_includes_source_file(self) -> None:
         """Report should reference the analyzed source file."""
-        results = []
+        results: List[DriftResult] = []
 
         report = generate_report(results, "my-training-doc.md")
 
@@ -77,7 +79,7 @@ class TestGenerateReport:
 
     def test_report_markdown_has_header(self) -> None:
         """Markdown output should have a header."""
-        results = []
+        results: List[DriftResult] = []
 
         report = generate_report(results, "test.md")
         markdown = report.to_markdown()
@@ -128,7 +130,7 @@ class TestGenerateReport:
 
     def test_report_handles_empty_results(self) -> None:
         """Should handle empty results gracefully."""
-        results = []
+        results: List[DriftResult] = []
 
         report = generate_report(results, "test.md")
         markdown = report.to_markdown()
