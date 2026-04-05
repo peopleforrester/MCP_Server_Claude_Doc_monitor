@@ -172,7 +172,7 @@ class TestDefaultConfig:
         assert "doc_sources" in DEFAULT_CONFIG
         assert len(DEFAULT_CONFIG["doc_sources"]) >= 19
 
-    def test_default_config_has_anthropic_urls(self) -> None:
-        """Default doc sources should point to Anthropic docs."""
+    def test_default_config_has_official_doc_urls(self) -> None:
+        """Default doc sources should point to official documentation platform."""
         for url in DEFAULT_CONFIG["doc_sources"].values():
-            assert "anthropic.com" in url
+            assert "platform.claude.com" in url
