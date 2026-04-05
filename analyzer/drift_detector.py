@@ -311,7 +311,8 @@ def _parse_analysis_response(response_text: str) -> dict:
 async def analyze_claim(
     claim: Claim,
     docs: List[DocSection],
-    config_path: Optional[Path] = None
+    config_path: Optional[Path] = None,
+    client: Optional[anthropic.AsyncAnthropic] = None
 ) -> DriftResult:
     """
     Analyze a claim against current documentation using Claude.
@@ -351,10 +352,10 @@ async def analyze_claim(
         >>> print(result.suggested_update)
         "Claude has a 200,000 token context window"
     """
-    # Create an async Anthropic client.
-    # AsyncAnthropic is the async version of the Anthropic client.
-    # It reads the API key from the ANTHROPIC_API_KEY environment variable.
-    client = anthropic.AsyncAnthropic()
+    # Use the provided client or create a new one.
+    # AsyncAnthropic reads the API key from ANTHROPIC_API_KEY environment variable.
+    if client is None:
+        client = anthropic.AsyncAnthropic()
 
     # Get the configured model name (e.g., "claude-sonnet-4-20250514")
     model = get_analysis_model(config_path)

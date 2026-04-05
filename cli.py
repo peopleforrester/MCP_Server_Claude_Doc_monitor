@@ -44,6 +44,9 @@ import asyncio
 # We use sys.exit() to set the exit code on error.
 import sys
 
+# anthropic: The official SDK for calling the API.
+import anthropic
+
 # tomllib: Standard library TOML parser (Python 3.11+).
 # Used to read the version from pyproject.toml as the single source of truth.
 import tomllib
@@ -235,9 +238,13 @@ async def analyze_claims(
           ...
     """
     # Semaphore limits concurrent API calls to avoid rate limiting.
-    # 5 concurrent requests is a conservative limit for the Anthropic API.
+    # 5 concurrent requests is a conservative limit for the API.
     max_concurrent = 5
     semaphore = asyncio.Semaphore(max_concurrent)
+
+    # Create a single API client to reuse across all claim analyses.
+    # This avoids creating a new HTTP connection pool per claim.
+    api_client = anthropic.AsyncAnthropic()
 
     # Print initial message if verbose
     if verbose:
@@ -252,7 +259,7 @@ async def analyze_claims(
         nonlocal completed
         async with semaphore:
             try:
-                result = await analyze_claim(claim, docs, config_path)
+                result = await analyze_claim(claim, docs, config_path, client=api_client)
                 completed += 1
                 if verbose:
                     progress = completed / total * 100
