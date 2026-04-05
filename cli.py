@@ -35,6 +35,8 @@ The CLI follows Unix conventions:
 # IMPORTS
 # =============================================================================
 
+from __future__ import annotations
+
 # asyncio: Python's built-in async I/O library.
 # We use asyncio.run() to run our async functions from the sync CLI entry point.
 # Async allows concurrent operations (like fetching multiple URLs at once).
@@ -55,10 +57,6 @@ import tomllib
 # Used for input file and config file handling.
 from pathlib import Path
 
-# Type hints for function signatures.
-# - List[X]: A list containing items of type X
-# - Optional[X]: Either X or None
-from typing import List, Optional
 
 # click: Third-party library for building command-line interfaces.
 # It provides decorators for defining commands, arguments, and options.
@@ -122,8 +120,8 @@ from config import get_doc_sources
 
 async def fetch_reference_docs(
     verbose: bool = False,
-    config_path: Optional[Path] = None
-) -> List[DocSection]:
+    config_path: Path | None = None
+) -> list[DocSection]:
     """
     Fetch all reference documentation from configured sources.
 
@@ -161,7 +159,7 @@ async def fetch_reference_docs(
         click.echo("Fetching reference documentation...")
 
     # Initialize the result list
-    all_docs: List[DocSection] = []
+    all_docs: list[DocSection] = []
 
     # Get configured doc sources (topic name → URL mapping)
     doc_sources = get_doc_sources(config_path)
@@ -204,11 +202,11 @@ async def fetch_reference_docs(
 
 
 async def analyze_claims(
-    claims: List[Claim],
-    docs: List[DocSection],
+    claims: list[Claim],
+    docs: list[DocSection],
     verbose: bool = False,
-    config_path: Optional[Path] = None
-) -> List[DriftResult]:
+    config_path: Path | None = None
+) -> list[DriftResult]:
     """
     Analyze all claims against documentation using Claude.
 
@@ -254,7 +252,7 @@ async def analyze_claims(
     total = len(claims)
     completed = 0
 
-    async def analyze_single(claim: Claim) -> Optional[DriftResult]:
+    async def analyze_single(claim: Claim) -> DriftResult | None:
         """Analyze a single claim with semaphore-limited concurrency."""
         nonlocal completed
         async with semaphore:
@@ -287,7 +285,7 @@ async def analyze_claims(
 async def run_analysis(
     input_file: Path,
     verbose: bool = False,
-    config_path: Optional[Path] = None
+    config_path: Path | None = None
 ) -> str:
     """
     Run the complete analysis pipeline.
@@ -433,8 +431,8 @@ async def run_analysis(
 )
 def cli(
     input_file: Path,
-    output: Optional[Path],
-    config: Optional[Path],
+    output: Path | None,
+    config: Path | None,
     verbose: bool
 ) -> None:
     """

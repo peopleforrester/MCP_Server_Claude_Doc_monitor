@@ -35,6 +35,8 @@ Our parser looks for these patterns to extract structured data.
 # IMPORTS
 # =============================================================================
 
+from __future__ import annotations
+
 # re: Regular expression module for pattern matching.
 # Used to extract dates from changelog entry headers.
 import re
@@ -50,10 +52,6 @@ from datetime import datetime, timedelta
 # Path: Object-oriented filesystem paths for the config_path parameter.
 from pathlib import Path
 
-# Type hints for function signatures.
-# - List[X]: A list containing items of type X
-# - Optional[X]: Either X or None
-from typing import List, Optional
 
 # HTMLParser: Base class for parsing HTML documents.
 from html.parser import HTMLParser
@@ -146,7 +144,7 @@ class ChangelogParser(HTMLParser):
         super().__init__()
 
         # List of completed entries (each is a dict with date, title, description)
-        self.entries: List[dict] = []
+        self.entries: list[dict] = []
 
         # Current entry being built (empty dict when not in an entry)
         self.current_entry: dict = {}
@@ -156,7 +154,7 @@ class ChangelogParser(HTMLParser):
         self.in_content = False      # Inside an h3/h4/p (entry content)
 
         # Collector for text content of current element
-        self.current_text: List[str] = []
+        self.current_text: list[str] = []
 
         # Tags to skip (navigation, scripts, etc.)
         self.skip_tags = {"script", "style", "nav", "footer"}
@@ -277,7 +275,7 @@ class ChangelogParser(HTMLParser):
             if text:
                 self.current_text.append(text)
 
-    def get_entries(self) -> List[dict]:
+    def get_entries(self) -> list[dict]:
         """
         Get all parsed entries.
 
@@ -354,8 +352,8 @@ def _is_within_days(date_str: str, days: int) -> bool:
 
 async def get_recent_changes(
     days: int = 30,
-    config_path: Optional[Path] = None
-) -> List[ChangelogEntry]:
+    config_path: Path | None = None
+) -> list[ChangelogEntry]:
     """
     Fetch recent changes from the Anthropic changelog.
 

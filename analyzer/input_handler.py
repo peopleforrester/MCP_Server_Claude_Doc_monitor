@@ -30,6 +30,8 @@ Key Concepts:
 # IMPORTS
 # =============================================================================
 
+from __future__ import annotations
+
 # re: Regular expression module for pattern matching.
 # We use regex extensively to:
 # 1. Find markdown headers (# Header)
@@ -46,9 +48,6 @@ from dataclasses import dataclass
 # Better than string manipulation for cross-platform compatibility.
 from pathlib import Path
 
-# List: Type hint for lists.
-# Used to annotate function signatures like -> List[Section]
-from typing import List
 
 
 # =============================================================================
@@ -168,7 +167,7 @@ def load_markdown_file(file_path: Path) -> str:
 # MARKDOWN PARSING
 # =============================================================================
 
-def parse_sections(content: str) -> List[Section]:
+def parse_sections(content: str) -> list[Section]:
     """
     Parse markdown content into sections based on headers.
 
@@ -213,7 +212,7 @@ def parse_sections(content: str) -> List[Section]:
         return []
 
     # Initialize the result list
-    sections: List[Section] = []
+    sections: list[Section] = []
 
     # Split content into lines for line-by-line processing.
     # We process line by line because:
@@ -234,7 +233,7 @@ def parse_sections(content: str) -> List[Section]:
     current_section_title = None     # None until we hit the first header
     current_section_level = 0        # Heading level (1-6)
     current_section_start = 1        # Line number where section starts
-    current_content_lines: List[str] = []  # Lines of content for current section
+    current_content_lines: list[str] = []  # Lines of content for current section
 
     # Process each line with its line number.
     # enumerate() gives us (index, value) pairs.
@@ -305,7 +304,7 @@ def parse_sections(content: str) -> List[Section]:
 # CLAIM EXTRACTION
 # =============================================================================
 
-def extract_claims(sections: List[Section]) -> List[Claim]:
+def extract_claims(sections: list[Section]) -> list[Claim]:
     """
     Extract capability claims from document sections.
 
@@ -342,7 +341,7 @@ def extract_claims(sections: List[Section]) -> List[Claim]:
         Line 5: Claude can process images and generate...
         Line 12: The maximum context window is 200k tok...
     """
-    claims: List[Claim] = []
+    claims: list[Claim] = []
 
     # ==========================================================================
     # CLAIM PATTERN DEFINITIONS

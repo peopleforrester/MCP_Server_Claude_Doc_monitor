@@ -1,9 +1,10 @@
 # ABOUTME: Integration tests for the content freshness pipeline.
 # ABOUTME: Tests the full analysis workflow with transport-level HTTP mocking.
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Optional
 from unittest.mock import AsyncMock, patch, MagicMock
 
 import httpx
@@ -20,7 +21,7 @@ def _make_html_page(content: str) -> str:
 
 def _make_claude_response(status: str, reasoning: str,
                           source_ref: str = "https://docs.anthropic.com/test",
-                          suggested_update: Optional[str] = None) -> MagicMock:
+                          suggested_update: str | None = None) -> MagicMock:
     """Create a mock Claude API response with proper TextBlock spec."""
     response_json = json.dumps({
         "status": status,

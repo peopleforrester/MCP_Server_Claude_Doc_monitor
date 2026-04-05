@@ -40,14 +40,14 @@ But for documentation search, simple substring matching works well enough.
 # IMPORTS
 # =============================================================================
 
+from __future__ import annotations
+
 # dataclass: Decorator for creating data container classes.
 from dataclasses import dataclass
 
 # Path: Object-oriented filesystem paths for config_path parameter.
 from pathlib import Path
 
-# List, Optional: Type hints for function signatures.
-from typing import List, Optional
 
 # httpx: Modern async HTTP client for Python.
 import httpx
@@ -236,8 +236,8 @@ def _calculate_relevance(text: str, query: str) -> float:
 
 async def search_docs(
     query: str,
-    config_path: Optional[Path] = None
-) -> List[SearchResult]:
+    config_path: Path | None = None
+) -> list[SearchResult]:
     """
     Search across Claude documentation for matching content.
 
@@ -274,7 +274,7 @@ async def search_docs(
         0.45: https://docs.anthropic.com/en/api/messages
     """
     # Collect results as we search
-    results: List[SearchResult] = []
+    results: list[SearchResult] = []
 
     # Get configured doc sources (respects custom config if provided)
     doc_sources = get_doc_sources(config_path)
