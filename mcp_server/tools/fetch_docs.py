@@ -39,17 +39,16 @@ The parser handles:
 # IMPORTS
 # =============================================================================
 
+from __future__ import annotations
+
+import asyncio
+
 # dataclass: Decorator for creating data container classes.
 from dataclasses import dataclass
 
 # Path: Object-oriented filesystem paths for the config_path parameter.
 from pathlib import Path
 
-# Type hints for collections and optional values.
-# - List[X]: A list containing items of type X
-# - Dict[str, str]: A dictionary with string keys and string values
-# - Optional[X]: Either X or None
-from typing import List, Dict, Optional
 
 # HTMLParser: Base class for parsing HTML documents.
 # Part of Python's standard library. We subclass it to create a custom parser
@@ -105,7 +104,7 @@ class DocSection:
 # For backwards compatibility, expose DOC_SOURCES directly from config.
 # Old code might do: from fetch_docs import DOC_SOURCES
 # This allows that to keep working while the actual config lives in config.py.
-DOC_SOURCES: Dict[str, str] = DEFAULT_CONFIG["doc_sources"]
+DOC_SOURCES: dict[str, str] = DEFAULT_CONFIG["doc_sources"]
 
 
 # =============================================================================
@@ -155,7 +154,7 @@ class EnhancedHTMLTextExtractor(HTMLParser):
         super().__init__()
 
         # Collected text parts - we'll join these at the end
-        self.text_parts: List[str] = []
+        self.text_parts: list[str] = []
 
         # The page title, extracted from the first heading
         self.current_title: str = ""
@@ -174,7 +173,7 @@ class EnhancedHTMLTextExtractor(HTMLParser):
         self.in_list_item = False    # Inside li
 
         # Current table row cells - we collect these, then join them
-        self.current_row: List[str] = []
+        self.current_row: list[str] = []
 
         # =================================================================
         # SKIP TAG HANDLING
@@ -191,7 +190,7 @@ class EnhancedHTMLTextExtractor(HTMLParser):
 
         # Stack of currently open tags for context checking.
         # This is a simple list used as a stack (append/pop from end).
-        self.tag_stack: List[str] = []
+        self.tag_stack: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list) -> None:
         """
@@ -429,8 +428,8 @@ class EnhancedHTMLTextExtractor(HTMLParser):
 
 def _get_relevant_urls(
     topic: str,
-    config_path: Optional[Path] = None
-) -> List[str]:
+    config_path: Path | None = None
+) -> list[str]:
     """
     Get URLs relevant to the requested topic.
 
@@ -486,8 +485,8 @@ def _get_relevant_urls(
 
 async def fetch_current_docs(
     topic: str,
-    config_path: Optional[Path] = None
-) -> List[DocSection]:
+    config_path: Path | None = None
+) -> list[DocSection]:
     """
     Fetch current Claude documentation for a given topic.
 
@@ -528,8 +527,24 @@ async def fetch_current_docs(
     # Get configured timeout
     timeout = get_fetch_timeout(config_path)
 
-    # Collect results
-    sections: List[DocSection] = []
+    # Limit concurrency to avoid overwhelming the server
+    semaphore = asyncio.Semaphore(5)
+
+    async def _fetch_single(client: httpx.AsyncClient, url: str) -> DocSection | None:
+        """Fetch and parse a single documentation URL."""
+        async with semaphore:
+            response = await client.get(url)
+            response.raise_for_status()
+
+            parser = EnhancedHTMLTextExtractor()
+            parser.feed(response.text)
+
+            content = parser.get_text()
+            title = parser.get_title()
+
+            if content:
+                return DocSection(title=title, content=content, source_url=url)
+            return None
 
     # Create an async HTTP client with configuration.
     # Using 'async with' ensures the client is properly closed when done.
@@ -537,39 +552,16 @@ async def fetch_current_docs(
         timeout=float(timeout),      # Convert int to float for httpx
         follow_redirects=True,       # Automatically follow HTTP redirects
         headers={
-            # Identify ourselves in the User-Agent header
-            # This is good HTTP citizenship
             "User-Agent": "ContentFreshnessSystem/1.0"
         }
     ) as client:
-        # Fetch each URL
-        for url in urls:
-            # await: Pause this coroutine until the HTTP response arrives.
-            # This allows other async tasks to run while waiting.
-            response = await client.get(url)
+        # Fetch all URLs concurrently
+        results = await asyncio.gather(
+            *(_fetch_single(client, url) for url in urls),
+            return_exceptions=True
+        )
 
-            # raise_for_status() raises an exception for 4xx/5xx responses.
-            # This ensures we only process successful responses.
-            response.raise_for_status()
-
-            # Parse the HTML content.
-            # Create a new parser instance for each page.
-            parser = EnhancedHTMLTextExtractor()
-
-            # feed() processes the HTML and calls our handle_* methods.
-            # response.text is the decoded response body as a string.
-            parser.feed(response.text)
-
-            # Extract the processed content
-            content = parser.get_text()
-            title = parser.get_title()
-
-            # Only add if we got actual content
-            if content:
-                sections.append(DocSection(
-                    title=title,
-                    content=content,
-                    source_url=url
-                ))
+    # Filter out None results and exceptions
+    sections: list[DocSection] = [r for r in results if isinstance(r, DocSection)]
 
     return sections

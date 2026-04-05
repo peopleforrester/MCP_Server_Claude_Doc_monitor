@@ -33,8 +33,9 @@ that might say "200,000 tokens" - Claude understands these are different.
 # IMPORTS
 # =============================================================================
 
-# json: For parsing Claude's JSON response.
-# Claude returns analysis as a JSON object, which we parse into a Python dict.
+from __future__ import annotations
+
+# json: For parsing the JSON response from the analysis API call.
 import json
 
 # dataclass: Decorator for creating data container classes with auto-generated methods.
@@ -47,10 +48,6 @@ from enum import Enum
 # Path: Object-oriented filesystem paths for the config_path parameter.
 from pathlib import Path
 
-# Type hints for function signatures.
-# - List[X]: A list containing items of type X
-# - Optional[X]: Either X or None
-from typing import List, Optional
 
 # anthropic: The official Anthropic Python SDK for calling the Claude API.
 # We use AsyncAnthropic for async/await support (non-blocking API calls).
@@ -158,8 +155,8 @@ class DriftResult:
     line_number: int                     # Where to find it
     status: DriftStatus                  # The classification result
     reasoning: str                       # Why this classification
-    source_reference: Optional[str]      # Doc URL if found (None if unverifiable)
-    suggested_update: Optional[str]      # Corrected text if outdated (None otherwise)
+    source_reference: str | None      # Doc URL if found (None if unverifiable)
+    suggested_update: str | None      # Corrected text if outdated (None otherwise)
 
 
 # =============================================================================
@@ -205,7 +202,7 @@ Respond ONLY with the JSON object, no other text."""
 # HELPER FUNCTIONS
 # =============================================================================
 
-def _format_docs_for_prompt(docs: List[DocSection]) -> str:
+def _format_docs_for_prompt(docs: list[DocSection]) -> str:
     """
     Format documentation sections for inclusion in the analysis prompt.
 
@@ -310,8 +307,9 @@ def _parse_analysis_response(response_text: str) -> dict:
 
 async def analyze_claim(
     claim: Claim,
-    docs: List[DocSection],
-    config_path: Optional[Path] = None
+    docs: list[DocSection],
+    config_path: Path | None = None,
+    client: anthropic.AsyncAnthropic | None = None
 ) -> DriftResult:
     """
     Analyze a claim against current documentation using Claude.
@@ -351,10 +349,10 @@ async def analyze_claim(
         >>> print(result.suggested_update)
         "Claude has a 200,000 token context window"
     """
-    # Create an async Anthropic client.
-    # AsyncAnthropic is the async version of the Anthropic client.
-    # It reads the API key from the ANTHROPIC_API_KEY environment variable.
-    client = anthropic.AsyncAnthropic()
+    # Use the provided client or create a new one.
+    # AsyncAnthropic reads the API key from ANTHROPIC_API_KEY environment variable.
+    if client is None:
+        client = anthropic.AsyncAnthropic()
 
     # Get the configured model name (e.g., "claude-sonnet-4-20250514")
     model = get_analysis_model(config_path)

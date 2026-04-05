@@ -25,6 +25,8 @@ settings are centralized in a single place and accessed through a clean API.
 # IMPORTS
 # =============================================================================
 
+from __future__ import annotations
+
 # json: Standard library module for parsing JSON files. We use it to read
 # user configuration from config.json files.
 import json
@@ -41,12 +43,8 @@ from dataclasses import dataclass
 # for working with file paths across different operating systems.
 from pathlib import Path
 
-# Type hints: Dict, Optional, Any are used for type annotations which help
-# catch bugs early and make the code self-documenting.
-# - Dict[str, str]: A dictionary with string keys and string values
-# - Optional[X]: Either X or None
-# - Any: Any type (used when the type is complex or varies)
-from typing import Dict, Optional, Any
+# Any: Used for type annotations where the type varies.
+from typing import Any
 
 # Module-level logger for configuration warnings and errors.
 logger = logging.getLogger(__name__)
@@ -58,7 +56,7 @@ logger = logging.getLogger(__name__)
 # DEFAULT_CONFIG is a dictionary containing all the default settings.
 # This ensures the system works even without a config file.
 # The Dict[str, Any] type hint means string keys with values of any type.
-DEFAULT_CONFIG: Dict[str, Any] = {
+DEFAULT_CONFIG: dict[str, Any] = {
     # doc_sources: Maps topic names (keys) to documentation URLs (values).
     # These are the official Anthropic documentation pages we'll fetch
     # and use as the "source of truth" when checking if claims are current.
@@ -103,8 +101,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "fetch_timeout": 45,
 
     # analysis_model: The Claude model identifier used for drift analysis.
-    # claude-sonnet-4 is chosen for its balance of speed and accuracy.
-    "analysis_model": "claude-sonnet-4-20250514",
+    # claude-sonnet-4-6 is chosen for its balance of speed and accuracy.
+    "analysis_model": "claude-sonnet-4-6-20260220",
 }
 
 
@@ -135,8 +133,8 @@ class Config:
     """
 
     # Each attribute declaration defines both the name and expected type.
-    # Dict[str, str] means a dictionary with string keys and string values.
-    doc_sources: Dict[str, str]
+    # dict[str, str] means a dictionary with string keys and string values.
+    doc_sources: dict[str, str]
 
     # str type for simple string values
     changelog_url: str
@@ -152,7 +150,7 @@ class Config:
 # CONFIGURATION LOADING
 # =============================================================================
 
-def load_config(config_path: Optional[Path] = None) -> Config:
+def load_config(config_path: Path | None = None) -> Config:
     """
     Load configuration from a JSON file, merging with defaults.
 
@@ -251,14 +249,14 @@ def load_config(config_path: Optional[Path] = None) -> Config:
 # would be wasteful. Instead, we load once and reuse.
 
 # Stores the cached Config object, or None if not yet loaded
-_cached_config: Optional[Config] = None
+_cached_config: Config | None = None
 
 # Stores which config file path was used for the cache.
 # This allows us to invalidate the cache if a different file is requested.
-_cached_config_path: Optional[Path] = None
+_cached_config_path: Path | None = None
 
 
-def _get_config(config_path: Optional[Path] = None) -> Config:
+def _get_config(config_path: Path | None = None) -> Config:
     """
     Get config, using cache when possible.
 
@@ -308,7 +306,7 @@ def _get_config(config_path: Optional[Path] = None) -> Config:
 # 2. Automatically uses caching
 # 3. Type hints on return values help IDE autocompletion
 
-def get_doc_sources(config_path: Optional[Path] = None) -> Dict[str, str]:
+def get_doc_sources(config_path: Path | None = None) -> dict[str, str]:
     """
     Get the configured documentation sources.
 
@@ -328,7 +326,7 @@ def get_doc_sources(config_path: Optional[Path] = None) -> Dict[str, str]:
     return _get_config(config_path).doc_sources
 
 
-def get_changelog_url(config_path: Optional[Path] = None) -> str:
+def get_changelog_url(config_path: Path | None = None) -> str:
     """
     Get the configured changelog URL.
 
@@ -345,7 +343,7 @@ def get_changelog_url(config_path: Optional[Path] = None) -> str:
     return _get_config(config_path).changelog_url
 
 
-def get_fetch_timeout(config_path: Optional[Path] = None) -> int:
+def get_fetch_timeout(config_path: Path | None = None) -> int:
     """
     Get the configured fetch timeout in seconds.
 
@@ -362,13 +360,13 @@ def get_fetch_timeout(config_path: Optional[Path] = None) -> int:
     return _get_config(config_path).fetch_timeout
 
 
-def get_analysis_model(config_path: Optional[Path] = None) -> str:
+def get_analysis_model(config_path: Path | None = None) -> str:
     """
     Get the configured Claude model for analysis.
 
     This specifies which Claude model to use when analyzing claims for drift.
     Different models have different capabilities, speeds, and costs.
-    The default (claude-sonnet-4) balances accuracy with response speed.
+    The default (claude-sonnet-4-6) balances accuracy with response speed.
 
     Model ID format: "claude-{variant}-{version}-{date}"
     - variant: haiku, sonnet, opus (increasing capability/cost)
@@ -379,6 +377,6 @@ def get_analysis_model(config_path: Optional[Path] = None) -> str:
         config_path: Optional path to config file.
 
     Returns:
-        Model identifier string (e.g., "claude-sonnet-4-20250514").
+        Model identifier string (e.g., "claude-sonnet-4-6-20260220").
     """
     return _get_config(config_path).analysis_model

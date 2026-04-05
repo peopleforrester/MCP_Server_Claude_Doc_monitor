@@ -35,6 +35,8 @@ Our parser looks for these patterns to extract structured data.
 # IMPORTS
 # =============================================================================
 
+from __future__ import annotations
+
 # re: Regular expression module for pattern matching.
 # Used to extract dates from changelog entry headers.
 import re
@@ -50,10 +52,6 @@ from datetime import datetime, timedelta
 # Path: Object-oriented filesystem paths for the config_path parameter.
 from pathlib import Path
 
-# Type hints for function signatures.
-# - List[X]: A list containing items of type X
-# - Optional[X]: Either X or None
-from typing import List, Optional
 
 # HTMLParser: Base class for parsing HTML documents.
 from html.parser import HTMLParser
@@ -146,7 +144,7 @@ class ChangelogParser(HTMLParser):
         super().__init__()
 
         # List of completed entries (each is a dict with date, title, description)
-        self.entries: List[dict] = []
+        self.entries: list[dict] = []
 
         # Current entry being built (empty dict when not in an entry)
         self.current_entry: dict = {}
@@ -156,7 +154,7 @@ class ChangelogParser(HTMLParser):
         self.in_content = False      # Inside an h3/h4/p (entry content)
 
         # Collector for text content of current element
-        self.current_text: List[str] = []
+        self.current_text: list[str] = []
 
         # Tags to skip (navigation, scripts, etc.)
         self.skip_tags = {"script", "style", "nav", "footer"}
@@ -277,7 +275,7 @@ class ChangelogParser(HTMLParser):
             if text:
                 self.current_text.append(text)
 
-    def get_entries(self) -> List[dict]:
+    def get_entries(self) -> list[dict]:
         """
         Get all parsed entries.
 
@@ -285,13 +283,17 @@ class ChangelogParser(HTMLParser):
         Don't forget to handle the last entry which might not have been
         appended yet (no h2 after it to trigger the append).
 
+        This method is idempotent — calling it multiple times returns the
+        same result without duplicating the last entry.
+
         Returns:
             List of entry dictionaries, each with date, title, description.
         """
-        # Don't forget the last entry
-        # (there's no h2 after the last entry to trigger the append)
+        # Flush the last entry if it hasn't been appended yet.
+        # Clear current_entry afterward to prevent double-append on repeated calls.
         if self.current_entry:
             self.entries.append(self.current_entry)
+            self.current_entry = {}
 
         return self.entries
 
@@ -300,18 +302,24 @@ class ChangelogParser(HTMLParser):
 # DATE FILTERING HELPER
 # =============================================================================
 
-def _is_within_days(date_str: str, days: int) -> bool:
+def _is_within_days(
+    date_str: str,
+    days: int,
+    reference_date: datetime | None = None
+) -> bool:
     """
     Check if a date string is within the specified number of days.
 
     This is used to filter changelog entries to only include recent ones.
-    "Recent" is defined as within `days` days of the current date.
+    "Recent" is defined as within `days` days of the reference date.
 
     Args:
         date_str: A date string in YYYY-MM-DD format.
                   Example: "2024-01-15"
         days: Number of days to look back.
               Example: 30 means include entries from the last 30 days.
+        reference_date: The date to measure from. Defaults to now.
+                        Accepts an injectable value for deterministic testing.
 
     Returns:
         True if the date is within the range (recent enough).
@@ -331,20 +339,16 @@ def _is_within_days(date_str: str, days: int) -> bool:
         # %Y = 4-digit year, %m = 2-digit month, %d = 2-digit day
         entry_date = datetime.strptime(date_str, "%Y-%m-%d")
 
-        # Calculate the cutoff date.
-        # datetime.now() gets the current date/time.
-        # timedelta(days=N) represents a duration of N days.
-        # Subtracting gives us the date N days ago.
-        cutoff = datetime.now() - timedelta(days=days)
+        # Calculate the cutoff date from the reference point.
+        now = reference_date if reference_date is not None else datetime.now()
+        cutoff = now - timedelta(days=days)
 
         # Check if the entry date is at or after the cutoff.
-        # >= returns True if entry_date is more recent than cutoff.
         return entry_date >= cutoff
 
     except ValueError:
         # ValueError is raised if the date string doesn't match the format.
         # Include entries with unparseable dates to avoid losing data.
-        # The caller can handle filtering if needed.
         return True
 
 
@@ -354,8 +358,8 @@ def _is_within_days(date_str: str, days: int) -> bool:
 
 async def get_recent_changes(
     days: int = 30,
-    config_path: Optional[Path] = None
-) -> List[ChangelogEntry]:
+    config_path: Path | None = None
+) -> list[ChangelogEntry]:
     """
     Fetch recent changes from the Anthropic changelog.
 

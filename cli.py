@@ -35,6 +35,8 @@ The CLI follows Unix conventions:
 # IMPORTS
 # =============================================================================
 
+from __future__ import annotations
+
 # asyncio: Python's built-in async I/O library.
 # We use asyncio.run() to run our async functions from the sync CLI entry point.
 # Async allows concurrent operations (like fetching multiple URLs at once).
@@ -44,6 +46,9 @@ import asyncio
 # We use sys.exit() to set the exit code on error.
 import sys
 
+# anthropic: The official SDK for calling the API.
+import anthropic
+
 # tomllib: Standard library TOML parser (Python 3.11+).
 # Used to read the version from pyproject.toml as the single source of truth.
 import tomllib
@@ -52,10 +57,6 @@ import tomllib
 # Used for input file and config file handling.
 from pathlib import Path
 
-# Type hints for function signatures.
-# - List[X]: A list containing items of type X
-# - Optional[X]: Either X or None
-from typing import List, Optional
 
 # click: Third-party library for building command-line interfaces.
 # It provides decorators for defining commands, arguments, and options.
@@ -119,8 +120,8 @@ from config import get_doc_sources
 
 async def fetch_reference_docs(
     verbose: bool = False,
-    config_path: Optional[Path] = None
-) -> List[DocSection]:
+    config_path: Path | None = None
+) -> list[DocSection]:
     """
     Fetch all reference documentation from configured sources.
 
@@ -157,41 +158,37 @@ async def fetch_reference_docs(
         # click.echo() is like print() but works better with Click's output handling
         click.echo("Fetching reference documentation...")
 
-    # Initialize the result list
-    all_docs: List[DocSection] = []
-
     # Get configured doc sources (topic name → URL mapping)
     doc_sources = get_doc_sources(config_path)
-
-    # Convert to list of topic names for indexed iteration.
-    # We need indices for progress calculation.
     topics = list(doc_sources.keys())
 
-    # Fetch documentation for each topic
-    for i, topic in enumerate(topics):
-        # Show progress if verbose mode is enabled.
-        # Progress = (completed + 1) / total * 100
-        if verbose:
-            progress = (i + 1) / len(topics) * 100
-            # :.0f formats the float with 0 decimal places
-            click.echo(f"  [{progress:.0f}%] Fetching {topic} docs...")
+    # Track progress across concurrent fetches
+    completed = 0
+    total = len(topics)
 
+    async def fetch_topic(topic: str) -> list[DocSection]:
+        """Fetch docs for a single topic with progress reporting."""
+        nonlocal completed
         try:
-            # Fetch docs for this topic.
-            # await pauses until the fetch completes.
             docs = await fetch_current_docs(topic, config_path)
-
-            # Add fetched docs to our collection.
-            # extend() adds all items from docs to all_docs.
-            all_docs.extend(docs)
-
-        except Exception as e:
-            # Handle fetch errors gracefully.
-            # We log the error but continue with other topics.
-            # This makes the system more resilient.
+            completed += 1
             if verbose:
-                # err=True prints to stderr instead of stdout
+                progress = completed / total * 100
+                click.echo(f"  [{progress:.0f}%] Fetched {topic} docs...")
+            return docs
+        except Exception as e:
+            completed += 1
+            if verbose:
                 click.echo(f"  Warning: Could not fetch {topic} docs: {e}", err=True)
+            return []
+
+    # Fetch all topics concurrently
+    results = await asyncio.gather(*(fetch_topic(t) for t in topics))
+
+    # Flatten the list of lists
+    all_docs: list[DocSection] = []
+    for docs in results:
+        all_docs.extend(docs)
 
     # Print final count if verbose
     if verbose:
@@ -201,11 +198,11 @@ async def fetch_reference_docs(
 
 
 async def analyze_claims(
-    claims: List[Claim],
-    docs: List[DocSection],
+    claims: list[Claim],
+    docs: list[DocSection],
     verbose: bool = False,
-    config_path: Optional[Path] = None
-) -> List[DriftResult]:
+    config_path: Path | None = None
+) -> list[DriftResult]:
     """
     Analyze all claims against documentation using Claude.
 
@@ -235,9 +232,13 @@ async def analyze_claims(
           ...
     """
     # Semaphore limits concurrent API calls to avoid rate limiting.
-    # 5 concurrent requests is a conservative limit for the Anthropic API.
+    # 5 concurrent requests is a conservative limit for the API.
     max_concurrent = 5
     semaphore = asyncio.Semaphore(max_concurrent)
+
+    # Create a single API client to reuse across all claim analyses.
+    # This avoids creating a new HTTP connection pool per claim.
+    api_client = anthropic.AsyncAnthropic()
 
     # Print initial message if verbose
     if verbose:
@@ -247,12 +248,12 @@ async def analyze_claims(
     total = len(claims)
     completed = 0
 
-    async def analyze_single(claim: Claim) -> Optional[DriftResult]:
+    async def analyze_single(claim: Claim) -> DriftResult | None:
         """Analyze a single claim with semaphore-limited concurrency."""
         nonlocal completed
         async with semaphore:
             try:
-                result = await analyze_claim(claim, docs, config_path)
+                result = await analyze_claim(claim, docs, config_path, client=api_client)
                 completed += 1
                 if verbose:
                     progress = completed / total * 100
@@ -280,7 +281,7 @@ async def analyze_claims(
 async def run_analysis(
     input_file: Path,
     verbose: bool = False,
-    config_path: Optional[Path] = None
+    config_path: Path | None = None
 ) -> str:
     """
     Run the complete analysis pipeline.
@@ -426,8 +427,8 @@ async def run_analysis(
 )
 def cli(
     input_file: Path,
-    output: Optional[Path],
-    config: Optional[Path],
+    output: Path | None,
+    config: Path | None,
     verbose: bool
 ) -> None:
     """

@@ -33,6 +33,8 @@ The report format is designed to be:
 # IMPORTS
 # =============================================================================
 
+from __future__ import annotations
+
 # dataclass: Creates data container classes with auto-generated methods.
 from dataclasses import dataclass
 
@@ -40,10 +42,6 @@ from dataclasses import dataclass
 # We include timestamps to track when analysis was done.
 from datetime import datetime
 
-# Type hints for dictionaries and lists.
-# - Dict[str, int]: A dictionary with string keys and integer values
-# - List[X]: A list containing items of type X
-from typing import Dict, List
 
 # Import our custom types from the drift detector module.
 # DriftResult: The analysis result for a single claim.
@@ -82,8 +80,8 @@ class DriftReport:
     """
     source_file: str                 # Path to the analyzed file
     generated_at: datetime           # When the report was generated
-    results: List[DriftResult]       # All analysis results
-    summary: Dict[str, int]          # Count of each status type
+    results: list[DriftResult]       # All analysis results
+    summary: dict[str, int]          # Count of each status type
 
     def to_markdown(self) -> str:
         """
@@ -307,7 +305,7 @@ class DriftReport:
 # =============================================================================
 
 def generate_report(
-    results: List[DriftResult],
+    results: list[DriftResult],
     source_file: str
 ) -> DriftReport:
     """
