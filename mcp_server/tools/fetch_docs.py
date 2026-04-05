@@ -41,6 +41,8 @@ The parser handles:
 
 from __future__ import annotations
 
+import asyncio
+
 # dataclass: Decorator for creating data container classes.
 from dataclasses import dataclass
 
@@ -525,8 +527,24 @@ async def fetch_current_docs(
     # Get configured timeout
     timeout = get_fetch_timeout(config_path)
 
-    # Collect results
-    sections: list[DocSection] = []
+    # Limit concurrency to avoid overwhelming the server
+    semaphore = asyncio.Semaphore(5)
+
+    async def _fetch_single(client: httpx.AsyncClient, url: str) -> DocSection | None:
+        """Fetch and parse a single documentation URL."""
+        async with semaphore:
+            response = await client.get(url)
+            response.raise_for_status()
+
+            parser = EnhancedHTMLTextExtractor()
+            parser.feed(response.text)
+
+            content = parser.get_text()
+            title = parser.get_title()
+
+            if content:
+                return DocSection(title=title, content=content, source_url=url)
+            return None
 
     # Create an async HTTP client with configuration.
     # Using 'async with' ensures the client is properly closed when done.
@@ -534,39 +552,16 @@ async def fetch_current_docs(
         timeout=float(timeout),      # Convert int to float for httpx
         follow_redirects=True,       # Automatically follow HTTP redirects
         headers={
-            # Identify ourselves in the User-Agent header
-            # This is good HTTP citizenship
             "User-Agent": "ContentFreshnessSystem/1.0"
         }
     ) as client:
-        # Fetch each URL
-        for url in urls:
-            # await: Pause this coroutine until the HTTP response arrives.
-            # This allows other async tasks to run while waiting.
-            response = await client.get(url)
+        # Fetch all URLs concurrently
+        results = await asyncio.gather(
+            *(_fetch_single(client, url) for url in urls),
+            return_exceptions=True
+        )
 
-            # raise_for_status() raises an exception for 4xx/5xx responses.
-            # This ensures we only process successful responses.
-            response.raise_for_status()
-
-            # Parse the HTML content.
-            # Create a new parser instance for each page.
-            parser = EnhancedHTMLTextExtractor()
-
-            # feed() processes the HTML and calls our handle_* methods.
-            # response.text is the decoded response body as a string.
-            parser.feed(response.text)
-
-            # Extract the processed content
-            content = parser.get_text()
-            title = parser.get_title()
-
-            # Only add if we got actual content
-            if content:
-                sections.append(DocSection(
-                    title=title,
-                    content=content,
-                    source_url=url
-                ))
+    # Filter out None results and exceptions
+    sections: list[DocSection] = [r for r in results if isinstance(r, DocSection)]
 
     return sections

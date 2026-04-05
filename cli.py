@@ -158,41 +158,37 @@ async def fetch_reference_docs(
         # click.echo() is like print() but works better with Click's output handling
         click.echo("Fetching reference documentation...")
 
-    # Initialize the result list
-    all_docs: list[DocSection] = []
-
     # Get configured doc sources (topic name → URL mapping)
     doc_sources = get_doc_sources(config_path)
-
-    # Convert to list of topic names for indexed iteration.
-    # We need indices for progress calculation.
     topics = list(doc_sources.keys())
 
-    # Fetch documentation for each topic
-    for i, topic in enumerate(topics):
-        # Show progress if verbose mode is enabled.
-        # Progress = (completed + 1) / total * 100
-        if verbose:
-            progress = (i + 1) / len(topics) * 100
-            # :.0f formats the float with 0 decimal places
-            click.echo(f"  [{progress:.0f}%] Fetching {topic} docs...")
+    # Track progress across concurrent fetches
+    completed = 0
+    total = len(topics)
 
+    async def fetch_topic(topic: str) -> list[DocSection]:
+        """Fetch docs for a single topic with progress reporting."""
+        nonlocal completed
         try:
-            # Fetch docs for this topic.
-            # await pauses until the fetch completes.
             docs = await fetch_current_docs(topic, config_path)
-
-            # Add fetched docs to our collection.
-            # extend() adds all items from docs to all_docs.
-            all_docs.extend(docs)
-
-        except Exception as e:
-            # Handle fetch errors gracefully.
-            # We log the error but continue with other topics.
-            # This makes the system more resilient.
+            completed += 1
             if verbose:
-                # err=True prints to stderr instead of stdout
+                progress = completed / total * 100
+                click.echo(f"  [{progress:.0f}%] Fetched {topic} docs...")
+            return docs
+        except Exception as e:
+            completed += 1
+            if verbose:
                 click.echo(f"  Warning: Could not fetch {topic} docs: {e}", err=True)
+            return []
+
+    # Fetch all topics concurrently
+    results = await asyncio.gather(*(fetch_topic(t) for t in topics))
+
+    # Flatten the list of lists
+    all_docs: list[DocSection] = []
+    for docs in results:
+        all_docs.extend(docs)
 
     # Print final count if verbose
     if verbose:

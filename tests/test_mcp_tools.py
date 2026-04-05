@@ -51,7 +51,7 @@ class TestFetchCurrentDocs:
 
     @pytest.mark.asyncio
     async def test_fetch_docs_handles_http_error(self) -> None:
-        """Should raise exception on HTTP errors."""
+        """Should return empty list when all URLs fail with HTTP errors."""
         mock_response = MagicMock()
         mock_response.status_code = 500
         mock_response.raise_for_status.side_effect = Exception("Server error")
@@ -59,8 +59,8 @@ class TestFetchCurrentDocs:
         with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_response
 
-            with pytest.raises(Exception):
-                await fetch_current_docs("api")
+            result = await fetch_current_docs("api")
+            assert result == []
 
     @pytest.mark.asyncio
     async def test_fetch_docs_filters_by_topic(self) -> None:
