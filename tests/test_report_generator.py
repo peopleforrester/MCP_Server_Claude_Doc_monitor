@@ -9,7 +9,8 @@ from analyzer.report_generator import (
     generate_report,
     DriftReport,
 )
-from analyzer.drift_detector import DriftResult, DriftStatus
+from analyzer.changelog_analyzer import ChangelogImpact
+from analyzer.drift_detector import CitedEvidence, DriftResult, DriftStatus
 
 
 class TestGenerateReport:
@@ -188,3 +189,100 @@ class TestDriftReportDataClass:
 
         assert isinstance(markdown, str)
         assert len(markdown) > 0
+
+
+class TestCitationRendering:
+    """Tests that CitedEvidence renders into the report for flagged claims."""
+
+    def test_outdated_claim_renders_evidence_blockquote(self) -> None:
+        """Outdated claims with evidence must show the cited text as a blockquote."""
+        evidence = [
+            CitedEvidence(
+                cited_text="Claude supports a 200,000 token context window.",
+                document_title="Models Overview",
+                document_url="https://platform.claude.com/docs/models",
+                char_range=(42, 90),
+            )
+        ]
+        results = [
+            DriftResult(
+                claim_text="Context is 100k tokens.",
+                section_title="Limits",
+                line_number=5,
+                status=DriftStatus.OUTDATED,
+                reasoning="The docs say 200k.",
+                source_reference="https://platform.claude.com/docs/models",
+                suggested_update="Context is 200k tokens.",
+                evidence=evidence,
+            )
+        ]
+
+        markdown = generate_report(results, "test.md").to_markdown()
+
+        # Blockquote-prefixed cited text
+        assert "> Claude supports a 200,000 token context window." in markdown
+        # Title and URL visible for provenance
+        assert "Models Overview" in markdown
+        assert "https://platform.claude.com/docs/models" in markdown
+
+    def test_missing_evidence_omits_citation_section(self) -> None:
+        """Claims without evidence should not emit a stray Evidence header."""
+        results = [
+            DriftResult(
+                claim_text="A claim.",
+                section_title="S",
+                line_number=1,
+                status=DriftStatus.OUTDATED,
+                reasoning="r",
+                source_reference=None,
+                suggested_update="fix",
+                evidence=[],
+            )
+        ]
+        markdown = generate_report(results, "test.md").to_markdown()
+        assert "Evidence" not in markdown
+
+
+class TestChangelogImpactRendering:
+    """Tests that ChangelogImpact entries surface prominently in the report."""
+
+    def test_impacts_render_sorted_by_severity(self) -> None:
+        """HIGH severity impacts must come before MEDIUM, then LOW."""
+        impacts = [
+            ChangelogImpact(
+                claim_index=1, entry_index=0, severity="LOW",
+                explanation="tangentially related",
+                claim_text="Low claim", entry_title="Pricing update",
+                entry_date="2026-04-01", entry_url="https://x/1",
+            ),
+            ChangelogImpact(
+                claim_index=0, entry_index=1, severity="HIGH",
+                explanation="feature retired",
+                claim_text="High claim", entry_title="Model retired",
+                entry_date="2026-04-19", entry_url="https://x/2",
+            ),
+        ]
+        report = generate_report([], "test.md", changelog_impacts=impacts)
+        markdown = report.to_markdown()
+
+        assert "Recent Changelog Impact" in markdown
+        # HIGH appears before LOW in rendered order
+        high_pos = markdown.find("[HIGH]")
+        low_pos = markdown.find("[LOW]")
+        assert high_pos != -1 and low_pos != -1
+        assert high_pos < low_pos
+        # Source URLs included for provenance
+        assert "https://x/1" in markdown
+        assert "https://x/2" in markdown
+
+    def test_empty_impacts_omits_section(self) -> None:
+        """No impacts → no Recent Changelog Impact section in report."""
+        results = [
+            DriftResult(
+                claim_text="c", section_title="s", line_number=1,
+                status=DriftStatus.CURRENT, reasoning="r",
+                source_reference=None, suggested_update=None,
+            )
+        ]
+        markdown = generate_report(results, "test.md", changelog_impacts=[]).to_markdown()
+        assert "Recent Changelog Impact" not in markdown

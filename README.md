@@ -67,6 +67,72 @@ uv run python cli.py training-content.md -c my-config.json
 uv run python cli.py sample_input/outdated-training-doc.md -v
 ```
 
+### Flag Reference
+
+| Flag | Purpose |
+|------|---------|
+| `-o, --output FILE` | Write report to file instead of stdout. |
+| `-c, --config FILE` | Use a custom config file. |
+| `-v, --verbose` | Show progress bars, cache-hit metrics, and warnings. |
+| `--fast` | Use regex-based claim extraction (zero API cost, lower recall). Default is LLM extraction, cached by content SHA256. |
+| `--batch` | Submit analysis via the Batches API (~50% cheaper, up to 1h latency). |
+| `--dry-run` | Estimate input tokens and cost via `count_tokens`, then exit without running the analysis. |
+| `--skip-changelog` | Skip the recent-changelog cross-reference pass. |
+
+### Citation-Backed Evidence
+
+Outdated claims in the report include blockquoted excerpts from the live docs with title, URL, and exact character range, using the Anthropic Citations API. Example:
+
+```markdown
+### 1. Line 42: API Limits
+
+**Current claim:** Context is 100k tokens.
+**Suggested update:** Context is 200k tokens.
+**Reference:** https://platform.claude.com/docs/about-claude/models
+
+> Claude supports a 200,000 token context window.
+> — *Models Overview* (https://platform.claude.com/docs/about-claude/models) [chars 42–90]
+```
+
+## MCP Server
+
+The same drift-detection logic is exposed as an MCP server so Claude Code, Claude Desktop, or any other MCP-compatible client can invoke it.
+
+```bash
+# Run the server over stdio (default)
+uv run freshness-mcp
+```
+
+Tools exposed:
+
+| Tool | Purpose |
+|------|---------|
+| `check_drift(markdown)` | Analyze a training-content markdown string and return per-claim drift status with cited evidence. |
+| `search_docs(query)` | Keyword-search the configured Claude docs; returns ranked snippets. |
+| `get_changelog(days)` | Return changelog entries from the last *N* days. |
+
+Resources exposed:
+
+| URI template | Returns |
+|--------------|---------|
+| `docs://{topic}` | Current content for a doc topic (e.g. `docs://models`). |
+
+### Registering with Claude Code
+
+Add to `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "freshness": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/MCP_Server_Claude_Doc_monitor", "run", "freshness-mcp"],
+      "env": {"ANTHROPIC_API_KEY": "your-api-key-here"}
+    }
+  }
+}
+```
+
 ## Configuration
 
 The system uses a JSON configuration file to specify documentation sources and settings. By default, it looks for `config.json` in the current directory.

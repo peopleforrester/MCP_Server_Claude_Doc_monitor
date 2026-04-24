@@ -1,13 +1,18 @@
 # ABOUTME: Unit tests for the drift analyzer module.
 # ABOUTME: Tests Claude-powered claim comparison and classification.
 
+from __future__ import annotations
+
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from anthropic.types import TextBlock
 from analyzer.drift_detector import (
     analyze_claim,
+    CitedEvidence,
     DriftResult,
     DriftStatus,
+    _build_document_blocks,
+    _chunk_content,
 )
 from analyzer.input_handler import Claim
 from mcp_server.tools.fetch_docs import DocSection
@@ -273,3 +278,182 @@ class TestDriftStatus:
         assert DriftStatus.POTENTIALLY_STALE.value == "POTENTIALLY_STALE"
         assert DriftStatus.OUTDATED.value == "OUTDATED"
         assert DriftStatus.UNVERIFIABLE.value == "UNVERIFIABLE"
+
+
+class TestDocumentBlocks:
+    """Tests for the Citations-API document block builder."""
+
+    def test_build_document_blocks_enables_citations(self) -> None:
+        """Every document block must have citations.enabled=true."""
+        docs = [
+            DocSection(title="Doc A", content="Alpha.", source_url="https://x/a"),
+            DocSection(title="Doc B", content="Bravo.", source_url="https://x/b"),
+        ]
+        blocks = _build_document_blocks(docs)
+
+        assert len(blocks) == 2
+        for block in blocks:
+            assert block["type"] == "document"
+            assert block["source"]["type"] == "text"
+            assert block["source"]["media_type"] == "text/plain"
+            assert block["citations"] == {"enabled": True}
+            assert "title" in block
+
+    def test_build_document_blocks_preserves_titles_and_urls(self) -> None:
+        """Block metadata must map back to source docs for citation lookup."""
+        docs = [DocSection(title="Models", content="Body.", source_url="https://x/models")]
+        blocks = _build_document_blocks(docs)
+
+        assert blocks[0]["title"] == "Models"
+        assert blocks[0]["context"] == "https://x/models"
+
+    def test_chunk_content_preserves_small_docs(self) -> None:
+        """Docs under the chunk ceiling must produce a single chunk."""
+        chunks = _chunk_content("short doc", max_chars=1000)
+        assert chunks == ["short doc"]
+
+    def test_chunk_content_splits_large_docs(self) -> None:
+        """Docs over the chunk ceiling must split, preserving paragraph boundaries."""
+        big = ("paragraph one.\n\n" * 500) + ("paragraph two.\n\n" * 500)
+        chunks = _chunk_content(big, max_chars=8000)
+
+        assert len(chunks) > 1
+        assert all(len(c) <= 8000 for c in chunks)
+        assert "".join(chunks).replace("\n\n", "\n\n") == big or sum(len(c) for c in chunks) >= len(big) - 10
+
+    def test_large_doc_produces_multiple_document_blocks(self) -> None:
+        """A single large DocSection must expand into multiple document blocks."""
+        big_content = ("This is a paragraph.\n\n" * 5000)  # ~100KB
+        docs = [DocSection(title="Big", content=big_content, source_url="https://x/big")]
+
+        blocks = _build_document_blocks(docs)
+
+        assert len(blocks) > 1
+        # Every chunk must carry the same title + url for provenance
+        assert all(b["title"].startswith("Big") for b in blocks)
+        assert all(b["context"] == "https://x/big" for b in blocks)
+
+
+class TestPromptCaching:
+    """Tests that cache_control is applied to keep cost low across claims."""
+
+    @pytest.mark.asyncio
+    async def test_system_prompt_is_cached(self) -> None:
+        """System prompt must be passed as a block list with 1h ephemeral cache_control."""
+        claim = Claim(text="x", section_title="s", line_number=1)
+        docs = [DocSection(title="T", content="c", source_url="https://x")]
+
+        text_block = MagicMock(spec=TextBlock)
+        text_block.text = '{"status": "CURRENT", "reasoning": "r", "source_reference": null, "suggested_update": null}'
+        text_block.citations = None
+        mock_message = MagicMock()
+        mock_message.content = [text_block]
+
+        with patch("anthropic.AsyncAnthropic") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.messages.create = AsyncMock(return_value=mock_message)
+            mock_client_class.return_value = mock_client
+
+            await analyze_claim(claim, docs)
+
+        kwargs = mock_client.messages.create.await_args.kwargs
+        system = kwargs["system"]
+        assert isinstance(system, list)
+        assert system[-1]["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+
+    @pytest.mark.asyncio
+    async def test_last_document_block_is_cached(self) -> None:
+        """cache_control on the final doc block makes the whole corpus a single cacheable span."""
+        claim = Claim(text="x", section_title="s", line_number=1)
+        docs = [
+            DocSection(title="A", content="alpha", source_url="https://x/a"),
+            DocSection(title="B", content="bravo", source_url="https://x/b"),
+        ]
+
+        text_block = MagicMock(spec=TextBlock)
+        text_block.text = '{"status": "CURRENT", "reasoning": "r", "source_reference": null, "suggested_update": null}'
+        text_block.citations = None
+        mock_message = MagicMock()
+        mock_message.content = [text_block]
+
+        with patch("anthropic.AsyncAnthropic") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.messages.create = AsyncMock(return_value=mock_message)
+            mock_client_class.return_value = mock_client
+
+            await analyze_claim(claim, docs)
+
+        kwargs = mock_client.messages.create.await_args.kwargs
+        user_content = kwargs["messages"][0]["content"]
+        doc_blocks = [b for b in user_content if b.get("type") == "document"]
+        # Only the last doc block carries cache_control
+        assert "cache_control" not in doc_blocks[0]
+        assert doc_blocks[-1]["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+
+
+class TestCitationExtraction:
+    """Tests for parsing citations from Anthropic responses."""
+
+    @pytest.mark.asyncio
+    async def test_analyze_captures_cited_evidence(self) -> None:
+        """Citations on response text blocks must populate DriftResult.evidence."""
+        claim = Claim(text="Context is 100k.", section_title="Limits", line_number=1)
+        docs = [DocSection(title="Models", content="Context is 200k.", source_url="https://x/m")]
+
+        # Build a response text block with a citation attached
+        text_block_with_cite = MagicMock(spec=TextBlock)
+        text_block_with_cite.text = (
+            '{"status": "OUTDATED", "reasoning": "Docs say 200k.",'
+            ' "source_reference": "https://x/m", "suggested_update": "200k"}'
+        )
+        citation = MagicMock()
+        citation.type = "char_location"
+        citation.cited_text = "Context is 200k."
+        citation.document_title = "Models"
+        citation.document_index = 0
+        citation.start_char_index = 0
+        citation.end_char_index = 16
+        text_block_with_cite.citations = [citation]
+
+        mock_message = MagicMock()
+        mock_message.content = [text_block_with_cite]
+
+        with patch("anthropic.AsyncAnthropic") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.messages.create = AsyncMock(return_value=mock_message)
+            mock_client_class.return_value = mock_client
+
+            result = await analyze_claim(claim, docs)
+
+        assert len(result.evidence) == 1
+        ev = result.evidence[0]
+        assert isinstance(ev, CitedEvidence)
+        assert ev.cited_text == "Context is 200k."
+        assert ev.document_title == "Models"
+        assert ev.document_url == "https://x/m"
+        assert ev.char_range == (0, 16)
+
+    @pytest.mark.asyncio
+    async def test_analyze_no_citations_returns_empty_evidence(self) -> None:
+        """Response without citations must produce empty evidence list (not crash)."""
+        claim = Claim(text="x", section_title="s", line_number=1)
+        docs = [DocSection(title="T", content="c", source_url="https://x")]
+
+        text_block = MagicMock(spec=TextBlock)
+        text_block.text = (
+            '{"status": "UNVERIFIABLE", "reasoning": "n/a",'
+            ' "source_reference": null, "suggested_update": null}'
+        )
+        text_block.citations = None  # SDK sets to None when citations disabled
+
+        mock_message = MagicMock()
+        mock_message.content = [text_block]
+
+        with patch("anthropic.AsyncAnthropic") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.messages.create = AsyncMock(return_value=mock_message)
+            mock_client_class.return_value = mock_client
+
+            result = await analyze_claim(claim, docs)
+
+        assert result.evidence == []

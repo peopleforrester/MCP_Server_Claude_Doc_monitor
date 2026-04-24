@@ -160,3 +160,33 @@ class TestCliIntegration:
         # Should complete without error
         if result.exit_code == 0:
             assert "Drift" in result.output or "Analysis" in result.output
+
+
+class TestFastFlag:
+    """Tests for --fast flag routing between LLM and regex extractors."""
+
+    def test_cli_accepts_fast_flag(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            Path("test.md").write_text("# Test\nClaude can stream.")
+            with patch("cli.run_analysis", new_callable=AsyncMock) as mock_run:
+                mock_run.return_value = "# Report"
+                result = runner.invoke(cli, ["test.md", "--fast"])
+        assert result.exit_code == 0
+        mock_run.assert_awaited_once()
+        call_kwargs = mock_run.await_args.kwargs
+        call_args = mock_run.await_args.args
+        # Check either kwarg or positional form
+        assert call_kwargs.get("fast") is True or (len(call_args) >= 4 and call_args[3] is True)
+
+    def test_cli_defaults_to_llm_extraction(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            Path("test.md").write_text("# Test\nClaude can stream.")
+            with patch("cli.run_analysis", new_callable=AsyncMock) as mock_run:
+                mock_run.return_value = "# Report"
+                result = runner.invoke(cli, ["test.md"])
+        assert result.exit_code == 0
+        call_kwargs = mock_run.await_args.kwargs
+        call_args = mock_run.await_args.args
+        assert call_kwargs.get("fast", False) is False and (len(call_args) < 4 or call_args[3] is False)
