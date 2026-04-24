@@ -95,10 +95,15 @@ __version__ = _read_version()
 # - Claim: Data class for extracted claims
 from analyzer.input_handler import load_markdown_file, parse_sections, extract_claims, Claim
 
+# Claude-based extraction (default path); regex extract_claims remains available via --fast.
+from analyzer.claim_extractor import extract_claims_with_llm
+
 # Drift detection: Analyze claims using Claude.
 # - analyze_claim: Compare one claim against docs
 # - DriftResult: Data class for analysis results
 from analyzer.drift_detector import analyze_claim, DriftResult
+
+from tqdm.asyncio import tqdm_asyncio
 
 # Report generation: Format results as markdown.
 # - generate_report: Create a DriftReport from results
@@ -153,37 +158,28 @@ async def fetch_reference_docs(
           ...
         Fetched 19 documentation sections.
     """
-    # Print initial message if verbose
-    if verbose:
-        # click.echo() is like print() but works better with Click's output handling
-        click.echo("Fetching reference documentation...")
-
     # Get configured doc sources (topic name → URL mapping)
     doc_sources = get_doc_sources(config_path)
     topics = list(doc_sources.keys())
 
-    # Track progress across concurrent fetches
-    completed = 0
-    total = len(topics)
-
     async def fetch_topic(topic: str) -> list[DocSection]:
-        """Fetch docs for a single topic with progress reporting."""
-        nonlocal completed
+        """Fetch docs for a single topic, swallowing errors as empty lists."""
         try:
-            docs = await fetch_current_docs(topic, config_path)
-            completed += 1
-            if verbose:
-                progress = completed / total * 100
-                click.echo(f"  [{progress:.0f}%] Fetched {topic} docs...")
-            return docs
+            return await fetch_current_docs(topic, config_path)
         except Exception as e:
-            completed += 1
             if verbose:
                 click.echo(f"  Warning: Could not fetch {topic} docs: {e}", err=True)
             return []
 
-    # Fetch all topics concurrently
-    results = await asyncio.gather(*(fetch_topic(t) for t in topics))
+    # Fetch all topics concurrently with a progress bar when verbose.
+    if verbose:
+        results = await tqdm_asyncio.gather(
+            *(fetch_topic(t) for t in topics),
+            desc="Fetching docs",
+            unit="topic",
+        )
+    else:
+        results = await asyncio.gather(*(fetch_topic(t) for t in topics))
 
     # Flatten the list of lists
     all_docs: list[DocSection] = []
@@ -240,37 +236,27 @@ async def analyze_claims(
     # This avoids creating a new HTTP connection pool per claim.
     api_client = anthropic.AsyncAnthropic()
 
-    # Print initial message if verbose
-    if verbose:
-        click.echo(f"Analyzing {len(claims)} claims ({max_concurrent} concurrent)...")
-
-    # Track progress across concurrent tasks
-    total = len(claims)
-    completed = 0
-
     async def analyze_single(claim: Claim) -> DriftResult | None:
         """Analyze a single claim with semaphore-limited concurrency."""
-        nonlocal completed
         async with semaphore:
             try:
-                result = await analyze_claim(claim, docs, config_path, client=api_client)
-                completed += 1
-                if verbose:
-                    progress = completed / total * 100
-                    click.echo(f"  [{progress:.0f}%] Analyzed: {claim.text[:50]}...")
-                return result
+                return await analyze_claim(claim, docs, config_path, client=api_client)
             except Exception as e:
-                completed += 1
                 if verbose:
                     click.echo(f"  Warning: Could not analyze claim: {e}", err=True)
                 return None
 
-    # Run all analyses concurrently (limited by semaphore).
-    # asyncio.gather() runs coroutines concurrently and returns results
-    # in the same order as the input.
-    all_results = await asyncio.gather(
-        *(analyze_single(claim) for claim in claims)
-    )
+    # Run all analyses concurrently (limited by semaphore), with tqdm progress bar.
+    if verbose:
+        all_results = await tqdm_asyncio.gather(
+            *(analyze_single(claim) for claim in claims),
+            desc=f"Analyzing claims (x{max_concurrent})",
+            unit="claim",
+        )
+    else:
+        all_results = await asyncio.gather(
+            *(analyze_single(claim) for claim in claims)
+        )
 
     # Filter out None results from failed analyses
     results = [r for r in all_results if r is not None]
@@ -281,7 +267,8 @@ async def analyze_claims(
 async def run_analysis(
     input_file: Path,
     verbose: bool = False,
-    config_path: Path | None = None
+    config_path: Path | None = None,
+    fast: bool = False,
 ) -> str:
     """
     Run the complete analysis pipeline.
@@ -323,8 +310,17 @@ async def run_analysis(
     # Split content into sections by headers
     sections = parse_sections(content)
 
-    # Extract capability claims from the sections
-    claims = extract_claims(sections)
+    # Extract capability claims from the sections.
+    # Default: Claude-based extractor (higher recall, cached by content hash).
+    # --fast: regex extractor (zero API cost, lower recall).
+    if fast:
+        if verbose:
+            click.echo("Extracting claims (regex, --fast mode)...")
+        claims: list[Claim] = extract_claims(sections)
+    else:
+        if verbose:
+            click.echo("Extracting claims (Claude, cached by content hash)...")
+        claims = list(await extract_claims_with_llm(sections, config_path=config_path))
 
     if verbose:
         click.echo(f"Found {len(sections)} sections, {len(claims)} claims to analyze.")
@@ -425,11 +421,17 @@ async def run_analysis(
     is_flag=True,
     help="Show detailed progress information"
 )
+@click.option(
+    "--fast",
+    is_flag=True,
+    help="Use regex-based claim extraction (no LLM call, lower recall)"
+)
 def cli(
     input_file: Path,
     output: Path | None,
     config: Path | None,
-    verbose: bool
+    verbose: bool,
+    fast: bool,
 ) -> None:
     """
     Analyze training content for drift from current Claude documentation.
@@ -477,7 +479,9 @@ def cli(
         # Run the async analysis using asyncio.run().
         # asyncio.run() creates an event loop, runs the coroutine,
         # and cleans up when done. It bridges sync Click to async code.
-        report_content = asyncio.run(run_analysis(input_file, verbose, config))
+        report_content = asyncio.run(
+            run_analysis(input_file, verbose, config, fast=fast)
+        )
 
         # =====================================================================
         # OUTPUT HANDLING

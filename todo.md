@@ -2,13 +2,13 @@
 
 **See plan.md for context and code-gen prompts.**
 
-## Phase 1 — Claude-Based Claim Extraction
-- [ ] 1.1 Write failing tests for `ExtractedClaim` + `extract_claims_with_llm()`
-- [ ] 1.2 Implement LLM extraction with batched sections per call
-- [ ] 1.3 Add SHA256-keyed cache at `~/.cache/freshness-check/extractions/`
-- [ ] 1.4 Wire `--fast` CLI flag preserving regex path
-- [ ] 1.5 Add tqdm progress indicator
-- [ ] Commit: "Add Claude-based claim extraction with hash-keyed caching"
+## Phase 1 — Claude-Based Claim Extraction ✅
+- [x] 1.1 Write failing tests for `ExtractedClaim` + `extract_claims_with_llm()`
+- [x] 1.2 Implement LLM extraction with batched sections per call
+- [x] 1.3 Add SHA256-keyed cache at `~/.cache/freshness-check/extractions/`
+- [x] 1.4 Wire `--fast` CLI flag preserving regex path
+- [x] 1.5 Add tqdm progress indicator (tqdm.asyncio for doc fetch + analyze)
+- [x] Commit: "Add Claude-based claim extraction with hash-keyed caching"
 
 ## Phase 2 — Citations-Powered Analysis
 - [ ] 2.1 Document-block formatter with citations enabled

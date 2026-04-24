@@ -87,7 +87,7 @@ class TestPipelineIntegration:
 
             runner = CliRunner()
             result = runner.invoke(cli, [
-                str(input_file), "-c", str(config_file), "-v"
+                str(input_file), "-c", str(config_file), "-v", "--fast"
             ])
 
         assert result.exit_code == 0, f"CLI failed with output: {result.output}"
@@ -129,7 +129,7 @@ class TestPipelineIntegration:
             mock_client_class.return_value = mock_client
 
             runner = CliRunner()
-            result = runner.invoke(cli, [str(input_file), "-c", str(config_file)])
+            result = runner.invoke(cli, [str(input_file), "-c", str(config_file), "--fast"])
 
         assert result.exit_code == 0, f"CLI failed with output: {result.output}"
         assert "OUTDATED" in result.output
@@ -171,7 +171,7 @@ class TestPipelineIntegration:
 
             runner = CliRunner()
             result = runner.invoke(cli, [
-                str(input_file), "-o", str(output_file), "-c", str(config_file)
+                str(input_file), "-o", str(output_file), "-c", str(config_file), "--fast"
             ])
 
         assert result.exit_code == 0, f"CLI failed with output: {result.output}"
@@ -189,7 +189,7 @@ class TestPipelineIntegration:
         )
 
         runner = CliRunner()
-        result = runner.invoke(cli, [str(input_file)])
+        result = runner.invoke(cli, [str(input_file), "--fast"])
 
         assert result.exit_code == 0
         # Should still produce a report (empty analysis)
@@ -214,7 +214,9 @@ class TestPipelineIntegration:
         with patch("httpx.AsyncClient.get", new_callable=AsyncMock,
                     side_effect=httpx.HTTPError("Connection failed")):
             runner = CliRunner()
-            result = runner.invoke(cli, [str(input_file), "-c", str(config_file), "-v"])
+            result = runner.invoke(
+                cli, [str(input_file), "-c", str(config_file), "-v", "--fast"]
+            )
 
         # Should exit with error since no docs could be fetched
         assert result.exit_code != 0
