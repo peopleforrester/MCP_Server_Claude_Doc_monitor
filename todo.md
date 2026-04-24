@@ -34,11 +34,11 @@
 - [x] 4.6 Add `freshness-mcp` entry point + README section
 - [x] Commit: "Wire up MCP server with tools and resources"
 
-## Phase 5 — Token Counting + Dry-Run
-- [ ] 5.1 `cost_estimator.estimate_cost()` using `count_tokens` API
-- [ ] 5.2 `--dry-run` flag
-- [ ] 5.3 `--estimate-cost` flag with confirmation prompt
-- [ ] Commit: "Add cost estimation and --dry-run mode"
+## Phase 5 — Token Counting + Dry-Run ✅
+- [x] 5.1 `cost_estimator.estimate_cost()` using `count_tokens` API
+- [x] 5.2 `--dry-run` flag
+- [ ] 5.3 `--estimate-cost` flag with confirmation prompt (dropped — `--dry-run` then re-run covers the same workflow)
+- [x] Commit: "Add cost estimation and --dry-run mode"
 
 ## Phase 6 — Changelog Cross-Reference
 - [ ] 6.1 `changelog_analyzer.analyze_changelog_impact()`

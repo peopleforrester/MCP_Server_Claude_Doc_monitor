@@ -108,6 +108,9 @@ from analyzer.drift_detector import analyze_claim, DriftResult
 # batch discount + 1h prompt cache on system prompt and doc corpus.
 from analyzer.batch_runner import analyze_claims_batch
 
+# Pre-flight cost estimation via the free count_tokens endpoint.
+from analyzer.cost_estimator import estimate_cost
+
 from tqdm.asyncio import tqdm_asyncio
 
 # Report generation: Format results as markdown.
@@ -275,6 +278,7 @@ async def run_analysis(
     config_path: Path | None = None,
     fast: bool = False,
     batch: bool = False,
+    dry_run: bool = False,
 ) -> str:
     """
     Run the complete analysis pipeline.
@@ -366,6 +370,15 @@ async def run_analysis(
     # STEP 4: ANALYZE CLAIMS
     # =========================================================================
 
+    # Dry-run: estimate cost via count_tokens and exit without running analysis.
+    if dry_run:
+        from config import get_analysis_model
+        model = get_analysis_model(config_path)
+        if verbose:
+            click.echo(f"Estimating cost for {len(claims)} claims against {len(docs)} doc sections...")
+        estimate = await estimate_cost(claims, docs, model=model, config_path=config_path)
+        return estimate.format_summary()
+
     # Analyze each claim. --batch trades latency for ~10x cost savings.
     if batch:
         if verbose:
@@ -444,6 +457,11 @@ async def run_analysis(
     is_flag=True,
     help="Submit analysis via Anthropic Batches API (~50% cheaper, up to 1h latency)"
 )
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Estimate input tokens and cost via count_tokens, then exit (no analysis)"
+)
 def cli(
     input_file: Path,
     output: Path | None,
@@ -451,6 +469,7 @@ def cli(
     verbose: bool,
     fast: bool,
     batch: bool,
+    dry_run: bool,
 ) -> None:
     """
     Analyze training content for drift from current Claude documentation.
@@ -503,7 +522,10 @@ def cli(
         # asyncio.run() creates an event loop, runs the coroutine,
         # and cleans up when done. It bridges sync Click to async code.
         report_content = asyncio.run(
-            run_analysis(input_file, verbose, config, fast=fast, batch=batch)
+            run_analysis(
+                input_file, verbose, config,
+                fast=fast, batch=batch, dry_run=dry_run,
+            )
         )
 
         # =====================================================================
