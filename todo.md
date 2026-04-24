@@ -10,12 +10,12 @@
 - [x] 1.5 Add tqdm progress indicator (tqdm.asyncio for doc fetch + analyze)
 - [x] Commit: "Add Claude-based claim extraction with hash-keyed caching"
 
-## Phase 2 — Citations-Powered Analysis
-- [ ] 2.1 Document-block formatter with citations enabled
-- [ ] 2.2 Citation parsing → `CitedEvidence` list on `DriftResult`
-- [ ] 2.3 Report renderer for cited evidence as blockquotes
-- [ ] 2.4 Chunking for docs >80KB
-- [ ] Commit: "Use Citations API for verified drift evidence"
+## Phase 2 — Citations-Powered Analysis ✅
+- [x] 2.1 Document-block formatter with citations enabled
+- [x] 2.2 Citation parsing → `CitedEvidence` list on `DriftResult`
+- [x] 2.3 Report renderer for cited evidence as blockquotes
+- [x] 2.4 Chunking for docs >80KB (paragraph-boundary splits)
+- [x] Commit: "Use Citations API for verified drift evidence"
 
 ## Phase 3 — Prompt Caching + Batch Mode
 - [ ] 3.1 Add `cache_control` (ephemeral, 3600s) to system prompt + last doc block

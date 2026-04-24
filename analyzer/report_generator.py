@@ -46,7 +46,18 @@ from datetime import datetime
 # Import our custom types from the drift detector module.
 # DriftResult: The analysis result for a single claim.
 # DriftStatus: The enum of possible statuses (CURRENT, OUTDATED, etc.)
-from analyzer.drift_detector import DriftResult, DriftStatus
+from analyzer.drift_detector import CitedEvidence, DriftResult, DriftStatus
+
+
+def _render_evidence(evidence: list[CitedEvidence]) -> list[str]:
+    """Render cited evidence as markdown blockquotes with provenance."""
+    lines: list[str] = []
+    for ev in evidence:
+        lines.append(f"> {ev.cited_text}")
+        start, end = ev.char_range
+        lines.append(f"> — *{ev.document_title}* ({ev.document_url}) [chars {start}–{end}]")
+        lines.append("")
+    return lines
 
 
 # =============================================================================
@@ -243,6 +254,10 @@ class DriftReport:
                 if result.source_reference:
                     lines.append(f"**Reference:** {result.source_reference}")
                     lines.append("")
+
+                # Show cited evidence spans — verified pointers into the live doc
+                if result.evidence:
+                    lines.extend(_render_evidence(result.evidence))
 
         # =====================================================================
         # POTENTIALLY STALE SECTION

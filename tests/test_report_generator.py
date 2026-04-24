@@ -9,7 +9,7 @@ from analyzer.report_generator import (
     generate_report,
     DriftReport,
 )
-from analyzer.drift_detector import DriftResult, DriftStatus
+from analyzer.drift_detector import CitedEvidence, DriftResult, DriftStatus
 
 
 class TestGenerateReport:
@@ -188,3 +188,55 @@ class TestDriftReportDataClass:
 
         assert isinstance(markdown, str)
         assert len(markdown) > 0
+
+
+class TestCitationRendering:
+    """Tests that CitedEvidence renders into the report for flagged claims."""
+
+    def test_outdated_claim_renders_evidence_blockquote(self) -> None:
+        """Outdated claims with evidence must show the cited text as a blockquote."""
+        evidence = [
+            CitedEvidence(
+                cited_text="Claude supports a 200,000 token context window.",
+                document_title="Models Overview",
+                document_url="https://platform.claude.com/docs/models",
+                char_range=(42, 90),
+            )
+        ]
+        results = [
+            DriftResult(
+                claim_text="Context is 100k tokens.",
+                section_title="Limits",
+                line_number=5,
+                status=DriftStatus.OUTDATED,
+                reasoning="The docs say 200k.",
+                source_reference="https://platform.claude.com/docs/models",
+                suggested_update="Context is 200k tokens.",
+                evidence=evidence,
+            )
+        ]
+
+        markdown = generate_report(results, "test.md").to_markdown()
+
+        # Blockquote-prefixed cited text
+        assert "> Claude supports a 200,000 token context window." in markdown
+        # Title and URL visible for provenance
+        assert "Models Overview" in markdown
+        assert "https://platform.claude.com/docs/models" in markdown
+
+    def test_missing_evidence_omits_citation_section(self) -> None:
+        """Claims without evidence should not emit a stray Evidence header."""
+        results = [
+            DriftResult(
+                claim_text="A claim.",
+                section_title="S",
+                line_number=1,
+                status=DriftStatus.OUTDATED,
+                reasoning="r",
+                source_reference=None,
+                suggested_update="fix",
+                evidence=[],
+            )
+        ]
+        markdown = generate_report(results, "test.md").to_markdown()
+        assert "Evidence" not in markdown

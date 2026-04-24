@@ -39,7 +39,7 @@ from __future__ import annotations
 import json
 
 # dataclass: Decorator for creating data container classes with auto-generated methods.
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # Enum: Base class for creating enumerations (fixed sets of named values).
 # We use it for DriftStatus to ensure only valid statuses are used.
@@ -47,12 +47,12 @@ from enum import Enum
 
 # Path: Object-oriented filesystem paths for the config_path parameter.
 from pathlib import Path
+from typing import Any
 
 
 # anthropic: The official Anthropic Python SDK for calling the Claude API.
 # We use AsyncAnthropic for async/await support (non-blocking API calls).
 import anthropic
-from anthropic.types import TextBlock
 
 # Import our custom types from other modules in this project.
 # Claim: Represents an extracted claim from the input document.
@@ -63,6 +63,11 @@ from mcp_server.tools.fetch_docs import DocSection
 
 # get_analysis_model: Function to get the configured Claude model name.
 from config import get_analysis_model
+
+# Docs above ~80KB get chunked into multiple document content blocks.
+# The Citations API has a per-document practical ceiling; staying well under
+# 100KB leaves headroom for the system prompt and claim text.
+_DOC_CHUNK_MAX_CHARS = 80_000
 
 
 # =============================================================================
@@ -115,6 +120,21 @@ class DriftStatus(Enum):
 # =============================================================================
 
 @dataclass
+class CitedEvidence:
+    """A citation from the Anthropic Citations API pointing at a source document span.
+
+    The drift analyzer collects these whenever the API returns citations attached
+    to its response — they give verified pointers back into the live doc, so the
+    final report can show readers exactly which text contradicts a stale claim.
+    """
+
+    cited_text: str                      # The exact span of source text cited
+    document_title: str                  # Title of the source document
+    document_url: str                    # URL of the source document
+    char_range: tuple[int, int]          # (start, end) character offsets into the source
+
+
+@dataclass
 class DriftResult:
     """
     Result of analyzing a claim for drift.
@@ -157,6 +177,7 @@ class DriftResult:
     reasoning: str                       # Why this classification
     source_reference: str | None      # Doc URL if found (None if unverifiable)
     suggested_update: str | None      # Corrected text if outdated (None otherwise)
+    evidence: list[CitedEvidence] = field(default_factory=list)  # Verified citations
 
 
 # =============================================================================
@@ -177,25 +198,98 @@ class DriftResult:
 #
 # This prompt has been carefully tuned to produce consistent, parseable output.
 
-ANALYSIS_PROMPT = """You are a technical documentation analyst. Your task is to compare a claim from training content against current official documentation and determine if the claim is still accurate.
+ANALYSIS_SYSTEM_PROMPT = """You are a technical documentation analyst. You receive a claim from training content and one or more source documents attached with citations enabled. Determine whether the claim still matches the current documentation.
 
-CLAIM TO ANALYZE:
-"{claim_text}"
+Quote directly from the attached documents when forming your reasoning — the citations system will attach verified source pointers to those quotes automatically.
 
-CURRENT DOCUMENTATION:
-{docs_content}
+Respond with a single JSON object (no markdown fences) containing:
+- "status": "CURRENT", "POTENTIALLY_STALE", "OUTDATED", or "UNVERIFIABLE"
+  - CURRENT: The claim matches the documentation
+  - POTENTIALLY_STALE: The claim may be outdated but cannot be confirmed
+  - OUTDATED: The claim directly contradicts the documentation
+  - UNVERIFIABLE: No relevant documentation found
+- "reasoning": brief explanation, quoting directly from the source where possible
+- "source_reference": URL from the most relevant attached document (or null)
+- "suggested_update": corrected text if outdated (or null)"""
 
-Analyze whether the claim is accurate according to the current documentation. Respond with a JSON object (no markdown formatting) containing:
-- "status": One of "CURRENT", "POTENTIALLY_STALE", "OUTDATED", or "UNVERIFIABLE"
-  - CURRENT: The claim matches current documentation
-  - POTENTIALLY_STALE: The claim may be outdated but cannot be definitively determined
-  - OUTDATED: The claim directly contradicts current documentation
-  - UNVERIFIABLE: Cannot find relevant documentation to verify the claim
-- "reasoning": A brief explanation of your classification
-- "source_reference": The URL from the documentation that supports your analysis (or null if none)
-- "suggested_update": If outdated, suggest the corrected text (or null if current/unverifiable)
 
-Respond ONLY with the JSON object, no other text."""
+def _chunk_content(content: str, max_chars: int = _DOC_CHUNK_MAX_CHARS) -> list[str]:
+    """Split document content into chunks under max_chars, preferring paragraph breaks."""
+    if len(content) <= max_chars:
+        return [content]
+
+    chunks: list[str] = []
+    remaining = content
+    while len(remaining) > max_chars:
+        # Look for the last paragraph break before the ceiling
+        cut = remaining.rfind("\n\n", 0, max_chars)
+        if cut == -1:
+            cut = remaining.rfind("\n", 0, max_chars)
+        if cut == -1:
+            cut = max_chars
+        chunks.append(remaining[:cut])
+        remaining = remaining[cut:].lstrip("\n")
+    if remaining:
+        chunks.append(remaining)
+    return chunks
+
+
+def _build_document_blocks(docs: list[DocSection]) -> list[dict[str, Any]]:
+    """Build Messages API document content blocks with citations enabled.
+
+    Large docs are split into multiple blocks so no single block exceeds the
+    per-document chunk ceiling. Each chunk preserves the source title and URL
+    (in the ``context`` field) so citations can be mapped back to the live doc.
+    """
+    blocks: list[dict[str, Any]] = []
+    for doc in docs:
+        chunks = _chunk_content(doc.content)
+        for i, chunk in enumerate(chunks):
+            title = doc.title if len(chunks) == 1 else f"{doc.title} (part {i + 1}/{len(chunks)})"
+            blocks.append({
+                "type": "document",
+                "source": {
+                    "type": "text",
+                    "media_type": "text/plain",
+                    "data": chunk,
+                },
+                "title": title,
+                "context": doc.source_url,
+                "citations": {"enabled": True},
+            })
+    return blocks
+
+
+def _collect_citations(
+    message: Any,
+    docs: list[DocSection],
+) -> list[CitedEvidence]:
+    """Collect CitedEvidence objects from all text blocks in the response.
+
+    Maps ``document_title`` back to the original DocSection URL — document titles
+    carry a "(part N/M)" suffix when chunked, so we match by prefix.
+    """
+    evidence: list[CitedEvidence] = []
+    url_by_title: dict[str, str] = {doc.title: doc.source_url for doc in docs}
+
+    for block in getattr(message, "content", []) or []:
+        citations = getattr(block, "citations", None) or []
+        for citation in citations:
+            title = getattr(citation, "document_title", "") or ""
+            # Strip any "(part N/M)" suffix to find the original doc URL
+            base_title = title.split(" (part ")[0]
+            url = url_by_title.get(base_title, "")
+
+            start = getattr(citation, "start_char_index", 0) or 0
+            end = getattr(citation, "end_char_index", 0) or 0
+
+            evidence.append(CitedEvidence(
+                cited_text=getattr(citation, "cited_text", "") or "",
+                document_title=title,
+                document_url=url,
+                char_range=(start, end),
+            ))
+    return evidence
 
 
 # =============================================================================
@@ -354,53 +448,56 @@ async def analyze_claim(
     if client is None:
         client = anthropic.AsyncAnthropic()
 
-    # Get the configured model name (e.g., "claude-sonnet-4-20250514")
+    # Get the configured model name (e.g., "claude-sonnet-4-6")
     model = get_analysis_model(config_path)
 
-    # Format the documentation for inclusion in the prompt
-    docs_content = _format_docs_for_prompt(docs)
+    # Build the user message: all documents as citations-enabled blocks,
+    # then a trailing text block carrying the claim and instructions.
+    document_blocks = _build_document_blocks(docs)
+    claim_block = {
+        "type": "text",
+        "text": (
+            f'Claim to analyze:\n"{claim.text}"\n\n'
+            "Analyze this claim against the attached documents and respond with "
+            "the JSON object described in your instructions."
+        ),
+    }
 
-    # Construct the prompt by substituting placeholders.
-    # str.format() replaces {name} with the corresponding keyword argument.
-    prompt = ANALYSIS_PROMPT.format(
-        claim_text=claim.text,
-        docs_content=docs_content
-    )
+    # The SDK's message param types are tightly typed TypedDicts; our builder
+    # returns dicts with the same runtime shape, so we pass as Any.
+    user_content: Any = [*document_blocks, claim_block]
 
-    # Call the Claude API.
-    # await: Pause this coroutine until the API responds.
-    #        Control returns to the event loop, which can run other tasks.
-    # messages.create(): The Messages API endpoint for chat completions.
     message = await client.messages.create(
-        model=model,                    # Which Claude model to use
-        max_tokens=1024,                # Limit response length (saves cost)
-        messages=[
-            # The Messages API expects a list of message dicts.
-            # Each has a "role" (user/assistant) and "content".
-            {"role": "user", "content": prompt}
-        ]
+        model=model,
+        max_tokens=1024,
+        system=ANALYSIS_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": user_content}],
     )
 
-    # Extract the response text.
-    # message.content is a list of content blocks (TextBlock, ToolUseBlock, etc.).
-    # We narrow the type to TextBlock to safely access .text.
-    content_block = message.content[0]
-    if not isinstance(content_block, TextBlock):
-        raise ValueError(f"Expected TextBlock response, got {type(content_block).__name__}")
-    response_text = content_block.text
+    # Collect response text across all text blocks (Citations API may emit
+    # multiple blocks when citations are attached).
+    response_text = ""
+    for block in message.content:
+        text = getattr(block, "text", None)
+        if text:
+            response_text += text
+
+    if not response_text:
+        raise ValueError("Empty response from Claude API")
 
     # Parse the JSON response into a dictionary
     analysis = _parse_analysis_response(response_text)
 
-    # Construct and return the DriftResult.
-    # DriftStatus(analysis["status"]) converts the string to an enum value.
-    # .get() returns None if the key doesn't exist (for optional fields).
+    # Collect citations from the response — verified pointers into source docs.
+    evidence = _collect_citations(message, docs)
+
     return DriftResult(
         claim_text=claim.text,
         section_title=claim.section_title,
         line_number=claim.line_number,
         status=DriftStatus(analysis["status"]),
         reasoning=analysis["reasoning"],
-        source_reference=analysis.get("source_reference"),  # May be None
-        suggested_update=analysis.get("suggested_update")   # May be None
+        source_reference=analysis.get("source_reference"),
+        suggested_update=analysis.get("suggested_update"),
+        evidence=evidence,
     )
