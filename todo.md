@@ -40,11 +40,11 @@
 - [ ] 5.3 `--estimate-cost` flag with confirmation prompt (dropped — `--dry-run` then re-run covers the same workflow)
 - [x] Commit: "Add cost estimation and --dry-run mode"
 
-## Phase 6 — Changelog Cross-Reference
-- [ ] 6.1 `changelog_analyzer.analyze_changelog_impact()`
-- [ ] 6.2 Pipeline integration + `--skip-changelog` flag
-- [ ] 6.3 Report section for changelog impacts
-- [ ] Commit: "Cross-reference claims against recent changelog entries"
+## Phase 6 — Changelog Cross-Reference ✅
+- [x] 6.1 `changelog_analyzer.analyze_changelog_impact()` — single Claude call across all claims × entries
+- [x] 6.2 Pipeline integration + `--skip-changelog` flag
+- [x] 6.3 Report section for changelog impacts (sorted HIGH → MEDIUM → LOW)
+- [x] Commit: "Cross-reference claims against recent changelog entries"
 
 ## Phase 7 — Release
 - [ ] 7.1 End-to-end integration test with fixture doc

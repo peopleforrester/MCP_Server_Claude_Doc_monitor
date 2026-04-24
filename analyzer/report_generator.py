@@ -36,7 +36,7 @@ The report format is designed to be:
 from __future__ import annotations
 
 # dataclass: Creates data container classes with auto-generated methods.
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # datetime: For capturing when the report was generated.
 # We include timestamps to track when analysis was done.
@@ -46,6 +46,7 @@ from datetime import datetime
 # Import our custom types from the drift detector module.
 # DriftResult: The analysis result for a single claim.
 # DriftStatus: The enum of possible statuses (CURRENT, OUTDATED, etc.)
+from analyzer.changelog_analyzer import ChangelogImpact
 from analyzer.drift_detector import CitedEvidence, DriftResult, DriftStatus
 
 
@@ -56,6 +57,25 @@ def _render_evidence(evidence: list[CitedEvidence]) -> list[str]:
         lines.append(f"> {ev.cited_text}")
         start, end = ev.char_range
         lines.append(f"> — *{ev.document_title}* ({ev.document_url}) [chars {start}–{end}]")
+        lines.append("")
+    return lines
+
+
+def _render_changelog_impacts(impacts: list[ChangelogImpact]) -> list[str]:
+    """Render recent-changelog impacts grouped by severity."""
+    if not impacts:
+        return []
+    lines: list[str] = ["## Recent Changelog Impact", ""]
+    severity_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
+    sorted_impacts = sorted(impacts, key=lambda i: severity_order.get(i.severity, 3))
+    for imp in sorted_impacts:
+        lines.append(f"### [{imp.severity}] {imp.entry_title} ({imp.entry_date})")
+        lines.append("")
+        lines.append(f"**Affected claim:** {imp.claim_text}")
+        lines.append("")
+        lines.append(f"**Why it matters:** {imp.explanation}")
+        lines.append("")
+        lines.append(f"**Source:** {imp.entry_url}")
         lines.append("")
     return lines
 
@@ -93,6 +113,7 @@ class DriftReport:
     generated_at: datetime           # When the report was generated
     results: list[DriftResult]       # All analysis results
     summary: dict[str, int]          # Count of each status type
+    changelog_impacts: list[ChangelogImpact] = field(default_factory=list)
 
     def to_markdown(self) -> str:
         """
@@ -176,7 +197,14 @@ class DriftReport:
         # Handle empty results case
         if not self.results:
             lines.append("*No claims were analyzed.*")
+            if self.changelog_impacts:
+                lines.extend(_render_changelog_impacts(self.changelog_impacts))
             return "\n".join(lines)
+
+        # Recent changelog impacts render before the per-claim breakdown so
+        # reviewers see the most time-sensitive drift at the top of the report.
+        if self.changelog_impacts:
+            lines.extend(_render_changelog_impacts(self.changelog_impacts))
 
         # =====================================================================
         # RESULTS TABLE
@@ -321,7 +349,8 @@ class DriftReport:
 
 def generate_report(
     results: list[DriftResult],
-    source_file: str
+    source_file: str,
+    changelog_impacts: list[ChangelogImpact] | None = None,
 ) -> DriftReport:
     """
     Generate a drift report from analysis results.
@@ -389,5 +418,6 @@ def generate_report(
         source_file=source_file,
         generated_at=datetime.now(),
         results=results,
-        summary=summary
+        summary=summary,
+        changelog_impacts=changelog_impacts or [],
     )

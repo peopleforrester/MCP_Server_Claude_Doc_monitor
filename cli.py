@@ -111,6 +111,10 @@ from analyzer.batch_runner import analyze_claims_batch
 # Pre-flight cost estimation via the free count_tokens endpoint.
 from analyzer.cost_estimator import estimate_cost
 
+# Changelog cross-reference: flag claims hit by recent deprecations.
+from analyzer.changelog_analyzer import analyze_changelog_impact
+from mcp_server.tools.get_changelog import get_recent_changes
+
 from tqdm.asyncio import tqdm_asyncio
 
 # Report generation: Format results as markdown.
@@ -279,6 +283,7 @@ async def run_analysis(
     fast: bool = False,
     batch: bool = False,
     dry_run: bool = False,
+    skip_changelog: bool = False,
 ) -> str:
     """
     Run the complete analysis pipeline.
@@ -394,11 +399,27 @@ async def run_analysis(
     # STEP 5: GENERATE REPORT
     # =========================================================================
 
+    # Cross-reference claims against recent changelog entries to catch drift
+    # from brand-new deprecations that the per-doc Citations check may miss.
+    changelog_impacts = []
+    if not skip_changelog:
+        if verbose:
+            click.echo("Cross-referencing claims against recent changelog...")
+        try:
+            entries = await get_recent_changes(days=90, config_path=config_path)
+            if entries:
+                changelog_impacts = await analyze_changelog_impact(
+                    claims, entries, config_path=config_path
+                )
+        except Exception as e:
+            if verbose:
+                click.echo(f"  Warning: changelog cross-reference skipped: {e}", err=True)
+
     if verbose:
         click.echo("Generating report...")
 
     # Create the drift report from analysis results
-    report = generate_report(results, str(input_file))
+    report = generate_report(results, str(input_file), changelog_impacts=changelog_impacts)
 
     # Return the markdown-formatted report
     return report.to_markdown()
@@ -462,6 +483,11 @@ async def run_analysis(
     is_flag=True,
     help="Estimate input tokens and cost via count_tokens, then exit (no analysis)"
 )
+@click.option(
+    "--skip-changelog",
+    is_flag=True,
+    help="Skip the recent-changelog cross-reference step"
+)
 def cli(
     input_file: Path,
     output: Path | None,
@@ -470,6 +496,7 @@ def cli(
     fast: bool,
     batch: bool,
     dry_run: bool,
+    skip_changelog: bool,
 ) -> None:
     """
     Analyze training content for drift from current Claude documentation.
@@ -525,6 +552,7 @@ def cli(
             run_analysis(
                 input_file, verbose, config,
                 fast=fast, batch=batch, dry_run=dry_run,
+                skip_changelog=skip_changelog,
             )
         )
 
