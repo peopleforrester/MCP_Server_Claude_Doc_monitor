@@ -25,14 +25,14 @@
 - [x] 3.5 Wire `--batch` CLI flag
 - [x] Commit: "Add prompt caching and opt-in batch processing mode"
 
-## Phase 4 — MCP Server Wiring
-- [ ] 4.1 Add `mcp[cli]` dependency + FastMCP skeleton
-- [ ] 4.2 Register `check_drift` tool
-- [ ] 4.3 Register `search_docs` tool
-- [ ] 4.4 Register `get_changelog` tool
-- [ ] 4.5 Register `docs://{topic}` resource
-- [ ] 4.6 Add `freshness-mcp` entry point + README section
-- [ ] Commit: "Wire up MCP server with tools and resources"
+## Phase 4 — MCP Server Wiring ✅
+- [x] 4.1 Add `mcp[cli]` dependency + FastMCP skeleton
+- [x] 4.2 Register `check_drift` tool
+- [x] 4.3 Register `search_docs` tool
+- [x] 4.4 Register `get_changelog` tool
+- [x] 4.5 Register `docs://{topic}` resource
+- [x] 4.6 Add `freshness-mcp` entry point + README section
+- [x] Commit: "Wire up MCP server with tools and resources"
 
 ## Phase 5 — Token Counting + Dry-Run
 - [ ] 5.1 `cost_estimator.estimate_cost()` using `count_tokens` API

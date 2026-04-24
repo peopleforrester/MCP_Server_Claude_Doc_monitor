@@ -67,6 +67,45 @@ uv run python cli.py training-content.md -c my-config.json
 uv run python cli.py sample_input/outdated-training-doc.md -v
 ```
 
+## MCP Server
+
+The same drift-detection logic is exposed as an MCP server so Claude Code, Claude Desktop, or any other MCP-compatible client can invoke it.
+
+```bash
+# Run the server over stdio (default)
+uv run freshness-mcp
+```
+
+Tools exposed:
+
+| Tool | Purpose |
+|------|---------|
+| `check_drift(markdown)` | Analyze a training-content markdown string and return per-claim drift status with cited evidence. |
+| `search_docs(query)` | Keyword-search the configured Claude docs; returns ranked snippets. |
+| `get_changelog(days)` | Return changelog entries from the last *N* days. |
+
+Resources exposed:
+
+| URI template | Returns |
+|--------------|---------|
+| `docs://{topic}` | Current content for a doc topic (e.g. `docs://models`). |
+
+### Registering with Claude Code
+
+Add to `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "freshness": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/MCP_Server_Claude_Doc_monitor", "run", "freshness-mcp"],
+      "env": {"ANTHROPIC_API_KEY": "your-api-key-here"}
+    }
+  }
+}
+```
+
 ## Configuration
 
 The system uses a JSON configuration file to specify documentation sources and settings. By default, it looks for `config.json` in the current directory.
