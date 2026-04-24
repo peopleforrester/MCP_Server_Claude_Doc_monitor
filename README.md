@@ -67,6 +67,33 @@ uv run python cli.py training-content.md -c my-config.json
 uv run python cli.py sample_input/outdated-training-doc.md -v
 ```
 
+### Flag Reference
+
+| Flag | Purpose |
+|------|---------|
+| `-o, --output FILE` | Write report to file instead of stdout. |
+| `-c, --config FILE` | Use a custom config file. |
+| `-v, --verbose` | Show progress bars, cache-hit metrics, and warnings. |
+| `--fast` | Use regex-based claim extraction (zero API cost, lower recall). Default is LLM extraction, cached by content SHA256. |
+| `--batch` | Submit analysis via the Batches API (~50% cheaper, up to 1h latency). |
+| `--dry-run` | Estimate input tokens and cost via `count_tokens`, then exit without running the analysis. |
+| `--skip-changelog` | Skip the recent-changelog cross-reference pass. |
+
+### Citation-Backed Evidence
+
+Outdated claims in the report include blockquoted excerpts from the live docs with title, URL, and exact character range, using the Anthropic Citations API. Example:
+
+```markdown
+### 1. Line 42: API Limits
+
+**Current claim:** Context is 100k tokens.
+**Suggested update:** Context is 200k tokens.
+**Reference:** https://platform.claude.com/docs/about-claude/models
+
+> Claude supports a 200,000 token context window.
+> — *Models Overview* (https://platform.claude.com/docs/about-claude/models) [chars 42–90]
+```
+
 ## MCP Server
 
 The same drift-detection logic is exposed as an MCP server so Claude Code, Claude Desktop, or any other MCP-compatible client can invoke it.
