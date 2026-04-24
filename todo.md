@@ -17,13 +17,13 @@
 - [x] 2.4 Chunking for docs >80KB (paragraph-boundary splits)
 - [x] Commit: "Use Citations API for verified drift evidence"
 
-## Phase 3 — Prompt Caching + Batch Mode
-- [ ] 3.1 Add `cache_control` (ephemeral, 3600s) to system prompt + last doc block
-- [ ] 3.2 Log cache metrics in verbose mode
-- [ ] 3.3 Implement `batch_runner.submit_claims()`
-- [ ] 3.4 Implement `poll_until_complete()` with tqdm
-- [ ] 3.5 Wire `--batch` CLI flag
-- [ ] Commit: "Add prompt caching and opt-in batch processing mode"
+## Phase 3 — Prompt Caching + Batch Mode ✅
+- [x] 3.1 Add `cache_control` (ephemeral, 1h) to system prompt + last doc block
+- [x] 3.2 Log cache metrics at INFO in verbose mode
+- [x] 3.3 Implement `batch_runner.build_batch_requests()` + `analyze_claims_batch()`
+- [x] 3.4 Implement `poll_until_complete()` with progress_cb
+- [x] 3.5 Wire `--batch` CLI flag
+- [x] Commit: "Add prompt caching and opt-in batch processing mode"
 
 ## Phase 4 — MCP Server Wiring
 - [ ] 4.1 Add `mcp[cli]` dependency + FastMCP skeleton

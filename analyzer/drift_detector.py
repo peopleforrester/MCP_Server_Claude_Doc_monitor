@@ -37,6 +37,7 @@ from __future__ import annotations
 
 # json: For parsing the JSON response from the analysis API call.
 import json
+import logging
 
 # dataclass: Decorator for creating data container classes with auto-generated methods.
 from dataclasses import dataclass, field
@@ -68,6 +69,22 @@ from config import get_analysis_model
 # The Citations API has a per-document practical ceiling; staying well under
 # 100KB leaves headroom for the system prompt and claim text.
 _DOC_CHUNK_MAX_CHARS = 80_000
+
+# Prompt caching: system prompt + doc corpus are identical across all claims in
+# a run, so mark them cacheable. 1h TTL pairs well with batch processing runs.
+CACHE_CONTROL_1H = {"type": "ephemeral", "ttl": "1h"}
+
+logger = logging.getLogger(__name__)
+
+
+def _log_cache_usage(usage: Any) -> None:
+    """Emit cache-hit metrics at INFO so verbose runs surface cache behavior."""
+    if usage is None:
+        return
+    created = getattr(usage, "cache_creation_input_tokens", 0) or 0
+    read = getattr(usage, "cache_read_input_tokens", 0) or 0
+    if created or read:
+        logger.info("cache: created=%d read=%d tokens", created, read)
 
 
 # =============================================================================
@@ -240,6 +257,9 @@ def _build_document_blocks(docs: list[DocSection]) -> list[dict[str, Any]]:
     Large docs are split into multiple blocks so no single block exceeds the
     per-document chunk ceiling. Each chunk preserves the source title and URL
     (in the ``context`` field) so citations can be mapped back to the live doc.
+
+    The final block carries a 1h ephemeral cache_control, so subsequent claims
+    in the same run read the whole doc corpus from cache at ~10% of input cost.
     """
     blocks: list[dict[str, Any]] = []
     for doc in docs:
@@ -257,7 +277,18 @@ def _build_document_blocks(docs: list[DocSection]) -> list[dict[str, Any]]:
                 "context": doc.source_url,
                 "citations": {"enabled": True},
             })
+    if blocks:
+        blocks[-1]["cache_control"] = CACHE_CONTROL_1H
     return blocks
+
+
+def _build_system_blocks() -> list[dict[str, Any]]:
+    """Return the system prompt as a cacheable block list."""
+    return [{
+        "type": "text",
+        "text": ANALYSIS_SYSTEM_PROMPT,
+        "cache_control": CACHE_CONTROL_1H,
+    }]
 
 
 def _collect_citations(
@@ -466,11 +497,12 @@ async def analyze_claim(
     # The SDK's message param types are tightly typed TypedDicts; our builder
     # returns dicts with the same runtime shape, so we pass as Any.
     user_content: Any = [*document_blocks, claim_block]
+    system_blocks: Any = _build_system_blocks()
 
     message = await client.messages.create(
         model=model,
         max_tokens=1024,
-        system=ANALYSIS_SYSTEM_PROMPT,
+        system=system_blocks,
         messages=[{"role": "user", "content": user_content}],
     )
 
@@ -490,6 +522,7 @@ async def analyze_claim(
 
     # Collect citations from the response — verified pointers into source docs.
     evidence = _collect_citations(message, docs)
+    _log_cache_usage(getattr(message, "usage", None))
 
     return DriftResult(
         claim_text=claim.text,

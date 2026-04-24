@@ -334,6 +334,63 @@ class TestDocumentBlocks:
         assert all(b["context"] == "https://x/big" for b in blocks)
 
 
+class TestPromptCaching:
+    """Tests that cache_control is applied to keep cost low across claims."""
+
+    @pytest.mark.asyncio
+    async def test_system_prompt_is_cached(self) -> None:
+        """System prompt must be passed as a block list with 1h ephemeral cache_control."""
+        claim = Claim(text="x", section_title="s", line_number=1)
+        docs = [DocSection(title="T", content="c", source_url="https://x")]
+
+        text_block = MagicMock(spec=TextBlock)
+        text_block.text = '{"status": "CURRENT", "reasoning": "r", "source_reference": null, "suggested_update": null}'
+        text_block.citations = None
+        mock_message = MagicMock()
+        mock_message.content = [text_block]
+
+        with patch("anthropic.AsyncAnthropic") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.messages.create = AsyncMock(return_value=mock_message)
+            mock_client_class.return_value = mock_client
+
+            await analyze_claim(claim, docs)
+
+        kwargs = mock_client.messages.create.await_args.kwargs
+        system = kwargs["system"]
+        assert isinstance(system, list)
+        assert system[-1]["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+
+    @pytest.mark.asyncio
+    async def test_last_document_block_is_cached(self) -> None:
+        """cache_control on the final doc block makes the whole corpus a single cacheable span."""
+        claim = Claim(text="x", section_title="s", line_number=1)
+        docs = [
+            DocSection(title="A", content="alpha", source_url="https://x/a"),
+            DocSection(title="B", content="bravo", source_url="https://x/b"),
+        ]
+
+        text_block = MagicMock(spec=TextBlock)
+        text_block.text = '{"status": "CURRENT", "reasoning": "r", "source_reference": null, "suggested_update": null}'
+        text_block.citations = None
+        mock_message = MagicMock()
+        mock_message.content = [text_block]
+
+        with patch("anthropic.AsyncAnthropic") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.messages.create = AsyncMock(return_value=mock_message)
+            mock_client_class.return_value = mock_client
+
+            await analyze_claim(claim, docs)
+
+        kwargs = mock_client.messages.create.await_args.kwargs
+        user_content = kwargs["messages"][0]["content"]
+        doc_blocks = [b for b in user_content if b.get("type") == "document"]
+        # Only the last doc block carries cache_control
+        assert "cache_control" not in doc_blocks[0]
+        assert doc_blocks[-1]["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+
+
 class TestCitationExtraction:
     """Tests for parsing citations from Anthropic responses."""
 

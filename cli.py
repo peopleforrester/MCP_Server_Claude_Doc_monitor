@@ -41,6 +41,7 @@ from __future__ import annotations
 # We use asyncio.run() to run our async functions from the sync CLI entry point.
 # Async allows concurrent operations (like fetching multiple URLs at once).
 import asyncio
+import logging
 
 # sys: System-specific parameters and functions.
 # We use sys.exit() to set the exit code on error.
@@ -102,6 +103,10 @@ from analyzer.claim_extractor import extract_claims_with_llm
 # - analyze_claim: Compare one claim against docs
 # - DriftResult: Data class for analysis results
 from analyzer.drift_detector import analyze_claim, DriftResult
+
+# Opt-in batch processing path: trades latency for ~10x cost savings via 50%
+# batch discount + 1h prompt cache on system prompt and doc corpus.
+from analyzer.batch_runner import analyze_claims_batch
 
 from tqdm.asyncio import tqdm_asyncio
 
@@ -269,6 +274,7 @@ async def run_analysis(
     verbose: bool = False,
     config_path: Path | None = None,
     fast: bool = False,
+    batch: bool = False,
 ) -> str:
     """
     Run the complete analysis pipeline.
@@ -360,9 +366,16 @@ async def run_analysis(
     # STEP 4: ANALYZE CLAIMS
     # =========================================================================
 
-    # Analyze each claim against the documentation.
-    # This is async because each analysis involves an API call to Claude.
-    results = await analyze_claims(claims, docs, verbose, config_path)
+    # Analyze each claim. --batch trades latency for ~10x cost savings.
+    if batch:
+        if verbose:
+            click.echo(f"Submitting {len(claims)} claims to the Batches API...")
+        results = await analyze_claims_batch(
+            claims, docs, config_path=config_path,
+            progress_cb=(lambda b: click.echo(f"  batch status: {b.processing_status}")) if verbose else None,
+        )
+    else:
+        results = await analyze_claims(claims, docs, verbose, config_path)
 
     # =========================================================================
     # STEP 5: GENERATE REPORT
@@ -426,12 +439,18 @@ async def run_analysis(
     is_flag=True,
     help="Use regex-based claim extraction (no LLM call, lower recall)"
 )
+@click.option(
+    "--batch",
+    is_flag=True,
+    help="Submit analysis via Anthropic Batches API (~50% cheaper, up to 1h latency)"
+)
 def cli(
     input_file: Path,
     output: Path | None,
     config: Path | None,
     verbose: bool,
     fast: bool,
+    batch: bool,
 ) -> None:
     """
     Analyze training content for drift from current Claude documentation.
@@ -467,6 +486,10 @@ def cli(
         if default_config.exists():
             config = default_config
 
+    # Verbose mode: surface INFO logs (e.g., cache hit metrics from drift_detector).
+    if verbose:
+        logging.basicConfig(level=logging.INFO, format="  [%(name)s] %(message)s")
+
     # Log which config we're using if verbose
     if verbose and config:
         click.echo(f"Using config: {config}")
@@ -480,7 +503,7 @@ def cli(
         # asyncio.run() creates an event loop, runs the coroutine,
         # and cleans up when done. It bridges sync Click to async code.
         report_content = asyncio.run(
-            run_analysis(input_file, verbose, config, fast=fast)
+            run_analysis(input_file, verbose, config, fast=fast, batch=batch)
         )
 
         # =====================================================================
