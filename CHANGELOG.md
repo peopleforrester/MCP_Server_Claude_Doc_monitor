@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.1.1 — 2026-06-18
+
+Maintenance release: dependency refresh and documentation/configuration
+modernization. No behavior changes to the analysis pipeline.
+
+### Changed
+
+- **Dependency upgrades** — `anthropic` 0.89 → 0.111, `mcp[cli]` 1.27 → 1.28,
+  `click` 8.3 → 8.4, `tqdm` 4.67 → 4.68; dev tools `mypy` 1.19 → 2.1,
+  `pytest` 9.0 → 9.1, `pytest-asyncio` 1.3 → 1.4, `ruff` 0.15.0 → 0.15.18.
+  Transitive security patches pulled through (`idna`, `python-multipart`).
+  All 128 tests pass; `ruff` and `mypy` clean against the new versions.
+- **Documentation source URLs** migrated from the retired `docs.anthropic.com`
+  domain to `platform.claude.com` in `config.json` / `config.example.json`.
+- **Default analysis model** corrected to `claude-sonnet-4-6` in the local
+  `config.json` (the previous `claude-sonnet-4-20250514` was retired
+  2026-06-15). `config.py`'s built-in default was already current.
+- **README** refreshed to match the v1.1.0 architecture: current project
+  structure (new `analyzer/` modules and `mcp_server/server.py`), accurate
+  test count, and `platform.claude.com` config examples.
+
 ## 1.1.0 — 2026-04-24
 
 Major enhancement release. The project delivers on its `mcp_server/` name

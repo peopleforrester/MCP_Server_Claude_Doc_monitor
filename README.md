@@ -38,8 +38,8 @@ Training content about Claude goes stale as capabilities evolve. This system aut
 git clone https://github.com/peopleforrester/MCP_Server_Claude_Doc_monitor.git
 cd MCP_Server_Claude_Doc_monitor
 
-# Install dependencies
-uv sync
+# Install dependencies (use --dev to include the test/lint toolchain)
+uv sync --dev
 
 # Set your API key
 export ANTHROPIC_API_KEY="your-api-key-here"
@@ -100,7 +100,7 @@ The same drift-detection logic is exposed as an MCP server so Claude Code, Claud
 
 ```bash
 # Run the server over stdio (default)
-uv run freshness-mcp
+uv run python -m mcp_server.server
 ```
 
 Tools exposed:
@@ -126,7 +126,7 @@ Add to `~/.claude/settings.json`:
   "mcpServers": {
     "freshness": {
       "command": "uv",
-      "args": ["--directory", "/path/to/MCP_Server_Claude_Doc_monitor", "run", "freshness-mcp"],
+      "args": ["--directory", "/path/to/MCP_Server_Claude_Doc_monitor", "run", "python", "-m", "mcp_server.server"],
       "env": {"ANTHROPIC_API_KEY": "your-api-key-here"}
     }
   }
