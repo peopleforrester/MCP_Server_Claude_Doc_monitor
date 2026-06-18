@@ -142,18 +142,20 @@ The system uses a JSON configuration file to specify documentation sources and s
 ```json
 {
   "doc_sources": {
-    "api": "https://docs.anthropic.com/en/api/getting-started",
-    "models": "https://docs.anthropic.com/en/docs/about-claude/models",
-    "messages": "https://docs.anthropic.com/en/api/messages",
-    "vision": "https://docs.anthropic.com/en/docs/build-with-claude/vision",
-    "context": "https://docs.anthropic.com/en/docs/build-with-claude/context-windows",
-    "rate-limits": "https://docs.anthropic.com/en/api/rate-limits"
+    "api-getting-started": "https://platform.claude.com/docs/en/api/getting-started",
+    "models-overview": "https://platform.claude.com/docs/en/about-claude/models/overview",
+    "api-messages": "https://platform.claude.com/docs/en/api/messages",
+    "vision": "https://platform.claude.com/docs/en/build-with-claude/vision",
+    "context-windows": "https://platform.claude.com/docs/en/build-with-claude/context-windows",
+    "api-rate-limits": "https://platform.claude.com/docs/en/api/rate-limits"
   },
-  "changelog_url": "https://docs.anthropic.com/en/docs/resources/changelog",
-  "fetch_timeout": 30,
-  "analysis_model": "claude-sonnet-4-20250514"
+  "changelog_url": "https://platform.claude.com/docs/en/release-notes/overview",
+  "fetch_timeout": 45,
+  "analysis_model": "claude-sonnet-4-6"
 }
 ```
+
+> The repository ships a full `config.json` (and a matching `config.example.json`) covering ~20 documentation sources. The snippet above is abbreviated.
 
 ### Configuration Options
 
@@ -171,8 +173,8 @@ To monitor additional documentation pages, add entries to `doc_sources`:
 ```json
 {
   "doc_sources": {
-    "api": "https://docs.anthropic.com/en/api/getting-started",
-    "custom-topic": "https://docs.anthropic.com/en/docs/your-custom-page"
+    "api": "https://platform.claude.com/docs/en/api/getting-started",
+    "custom-topic": "https://platform.claude.com/docs/en/your-custom-page"
   }
 }
 ```
@@ -184,7 +186,7 @@ To monitor additional documentation pages, add entries to `doc_sources`:
 cat > my-config.json << 'EOF'
 {
   "doc_sources": {
-    "api": "https://docs.anthropic.com/en/api/getting-started"
+    "api": "https://platform.claude.com/docs/en/api/getting-started"
   },
   "fetch_timeout": 60
 }
@@ -218,18 +220,24 @@ The report includes:
 ```
 content-freshness-system/
 ├── config.json             # Default configuration
+├── config.example.json     # Annotated configuration template
 ├── config.py               # Configuration loader
 ├── cli.py                  # Command-line interface
 ├── analyzer/
-│   ├── input_handler.py    # Parse markdown and extract claims
-│   ├── drift_detector.py   # Claude-powered analysis
+│   ├── input_handler.py    # Parse markdown and extract claims (regex path)
+│   ├── claim_extractor.py  # Claude-based claim extraction (default, SHA256-cached)
+│   ├── drift_detector.py   # Claude-powered analysis with Citations API
+│   ├── batch_runner.py     # Batches API submission and polling
+│   ├── cost_estimator.py   # Token/cost estimation via count_tokens
+│   ├── changelog_analyzer.py # Recent-changelog impact cross-reference
 │   └── report_generator.py # Generate drift reports
 ├── mcp_server/
+│   ├── server.py           # FastMCP server (stdio) exposing the tools below
 │   └── tools/
 │       ├── fetch_docs.py   # Doc fetching from configured URLs
 │       ├── get_changelog.py# Changelog retrieval
 │       └── search_docs.py  # Search across documentation
-├── tests/                  # 84 unit and integration tests
+├── tests/                  # 128 unit and integration tests
 ├── sample_input/           # Example training doc with outdated claims
 └── sample_output/          # Example drift report
 ```
