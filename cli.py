@@ -50,9 +50,10 @@ import sys
 # anthropic: The official SDK for calling the API.
 import anthropic
 
-# tomllib: Standard library TOML parser (Python 3.11+).
-# Used to read the version from pyproject.toml as the single source of truth.
-import tomllib
+# importlib.metadata: Standard library access to installed package metadata.
+# Used to read the version recorded at install time from pyproject.toml,
+# which remains the single source of truth.
+from importlib.metadata import version as _package_version
 
 # Path: Object-oriented filesystem paths.
 # Used for input file and config file handling.
@@ -69,15 +70,18 @@ import click
 # =============================================================================
 
 def _read_version() -> str:
-    """Read project version from pyproject.toml.
+    """Read the project version from installed package metadata.
 
     This avoids duplicating the version string in multiple files.
-    pyproject.toml is the single source of truth for the version.
+    pyproject.toml is the single source of truth: the build backend records
+    its version into the distribution metadata at install time, and uv keeps
+    the editable install in sync with pyproject.toml on every run.
+
+    Raises:
+        importlib.metadata.PackageNotFoundError: If the project has not been
+            installed into the environment (run ``uv sync`` first).
     """
-    pyproject_path = Path(__file__).parent / "pyproject.toml"
-    with open(pyproject_path, "rb") as f:
-        data = tomllib.load(f)
-    return data["project"]["version"]
+    return _package_version("content-freshness-system")
 
 
 __version__ = _read_version()

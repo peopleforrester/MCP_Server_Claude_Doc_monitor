@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.1.2 — 2026-07-04
+
+### Fixed
+
+- **`freshness-check` and `freshness-mcp` console scripts now install.** The
+  project had `[project.scripts]` but no `[build-system]`, so uv never built
+  or installed the package and the documented commands did not exist. Added
+  a hatchling build backend with an explicit wheel manifest (`cli.py`,
+  `config.py`, `analyzer/`, `mcp_server/` — no tests or samples in the
+  wheel). `uv sync` now installs the project in editable mode with both
+  entry points on PATH.
+- **Version now read from package metadata.** `cli._read_version()` uses
+  `importlib.metadata` instead of parsing `pyproject.toml` relative to
+  `__file__`, which would have broken for non-editable installs.
+  pyproject.toml remains the single source of truth.
+
+### Changed
+
+- README commands use the console scripts (`uv run freshness-check`,
+  `uv run freshness-mcp`), including the Claude Code MCP registration.
+- New `tests/test_packaging.py` guards the entry-point registration and
+  metadata/pyproject version agreement (133 tests total).
+- `pydantic-settings` 2.14.1 → 2.14.2 (supersedes dependabot PR #11).
+
 ## 1.1.1 — 2026-06-18
 
 Maintenance release: dependency refresh and documentation/configuration

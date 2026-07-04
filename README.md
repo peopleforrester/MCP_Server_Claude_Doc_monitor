@@ -52,19 +52,19 @@ uv run pytest
 
 ```bash
 # Basic usage - output to stdout
-uv run python cli.py training-content.md
+uv run freshness-check training-content.md
 
 # Save report to file
-uv run python cli.py training-content.md -o drift-report.md
+uv run freshness-check training-content.md -o drift-report.md
 
 # Verbose mode with progress indicators
-uv run python cli.py training-content.md --verbose
+uv run freshness-check training-content.md --verbose
 
 # Use custom config file
-uv run python cli.py training-content.md -c my-config.json
+uv run freshness-check training-content.md -c my-config.json
 
 # Analyze the sample document
-uv run python cli.py sample_input/outdated-training-doc.md -v
+uv run freshness-check sample_input/outdated-training-doc.md -v
 ```
 
 ### Flag Reference
@@ -100,7 +100,7 @@ The same drift-detection logic is exposed as an MCP server so Claude Code, Claud
 
 ```bash
 # Run the server over stdio (default)
-uv run python -m mcp_server.server
+uv run freshness-mcp
 ```
 
 Tools exposed:
@@ -126,7 +126,7 @@ Add to `~/.claude/settings.json`:
   "mcpServers": {
     "freshness": {
       "command": "uv",
-      "args": ["--directory", "/path/to/MCP_Server_Claude_Doc_monitor", "run", "python", "-m", "mcp_server.server"],
+      "args": ["--directory", "/path/to/MCP_Server_Claude_Doc_monitor", "run", "freshness-mcp"],
       "env": {"ANTHROPIC_API_KEY": "your-api-key-here"}
     }
   }
@@ -193,7 +193,7 @@ cat > my-config.json << 'EOF'
 EOF
 
 # Run with custom config
-uv run python cli.py training-doc.md -c my-config.json
+uv run freshness-check training-doc.md -c my-config.json
 ```
 
 ## Example Output
