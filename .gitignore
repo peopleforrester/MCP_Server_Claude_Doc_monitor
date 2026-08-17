@@ -32,6 +32,12 @@ wheels/
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Type checker caches
+.mypy_cache/
+
+# Local agent state
+.claude/
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
