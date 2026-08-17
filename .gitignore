@@ -78,3 +78,6 @@ anki-cards.txt
 session_summaries/
 PROJECT_STATE.md
 config.json
+
+# Local Claude Code session history (do not push)
+.claude-history/
