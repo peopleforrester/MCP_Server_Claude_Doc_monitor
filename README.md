@@ -2,11 +2,15 @@
 
 [![CI](https://github.com/peopleforrester/MCP_Server_Claude_Doc_monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/peopleforrester/MCP_Server_Claude_Doc_monitor/actions/workflows/ci.yml)
 
-Claude-powered training content drift detection system.
+![Current documentation being compared against faded, outdated training material](assets/hero.png)
+
+Point this at your Claude training material and it reports which claims have gone stale, each finding backed by a cited excerpt from the live documentation.
+
+**[See a real drift report &rarr;](sample_output/drift-report.md)**
 
 ## Overview
 
-Training content about Claude goes stale as capabilities evolve. This system automates drift detection by comparing training materials against current documentation and changelogs.
+Training content about Claude goes stale as capabilities evolve. This system automates drift detection by comparing training materials against current documentation and changelogs, and ships the same analysis as both a CLI and an MCP server.
 
 ## Architecture
 
@@ -237,7 +241,8 @@ content-freshness-system/
 │       ├── fetch_docs.py   # Doc fetching from configured URLs
 │       ├── get_changelog.py# Changelog retrieval
 │       └── search_docs.py  # Search across documentation
-├── tests/                  # 128 unit and integration tests
+├── tests/                  # 133 unit and integration tests
+├── assets/                 # README hero image
 ├── sample_input/           # Example training doc with outdated claims
 └── sample_output/          # Example drift report
 ```
