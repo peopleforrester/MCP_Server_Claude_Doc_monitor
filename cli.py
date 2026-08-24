@@ -65,6 +65,16 @@ from pathlib import Path
 # Much cleaner than argparse for most use cases.
 import click
 
+# dotenv: Load credentials from the nearest repo .env file (override=True so
+# the project .env wins over any ambient export from ~/.keys or ~/.bashrc).
+from dotenv import load_dotenv as _load_dotenv
+
+for _d in [Path.cwd(), *Path.cwd().parents]:
+    _env_path = _d / ".env"
+    if _env_path.exists():
+        _load_dotenv(_env_path, override=True)
+        break
+
 # =============================================================================
 # VERSION
 # =============================================================================

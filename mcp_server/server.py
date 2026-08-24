@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv as _load_dotenv
 from mcp.server.fastmcp import FastMCP
 
 from analyzer.batch_runner import analyze_claims_batch
@@ -16,6 +18,14 @@ from config import get_doc_sources
 from mcp_server.tools.fetch_docs import DocSection, fetch_current_docs
 from mcp_server.tools.get_changelog import ChangelogEntry, get_recent_changes
 from mcp_server.tools.search_docs import search_docs as search_docs_fn
+
+# Load credentials from the nearest .env file so the project .env wins over
+# any ambient export from ~/.keys or ~/.bashrc (override=True is load-bearing).
+for _d in [Path.cwd(), *Path.cwd().parents]:
+    _env_path = _d / ".env"
+    if _env_path.exists():
+        _load_dotenv(_env_path, override=True)
+        break
 
 logger = logging.getLogger(__name__)
 
