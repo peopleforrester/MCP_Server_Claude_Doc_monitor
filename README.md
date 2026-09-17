@@ -155,7 +155,7 @@ The system uses a JSON configuration file to specify documentation sources and s
   },
   "changelog_url": "https://platform.claude.com/docs/en/release-notes/overview",
   "fetch_timeout": 45,
-  "analysis_model": "claude-sonnet-4-6"
+  "analysis_model": "claude-sonnet-5"
 }
 ```
 

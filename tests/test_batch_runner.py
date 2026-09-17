@@ -37,7 +37,7 @@ def test_build_batch_requests_has_unique_custom_ids(
     claims: list[Claim], docs: list[DocSection]
 ) -> None:
     """Each claim must map to a unique custom_id so results can be joined back."""
-    requests = build_batch_requests(claims, docs, model="claude-sonnet-4-6")
+    requests = build_batch_requests(claims, docs, model="claude-sonnet-5")
 
     assert len(requests) == 2
     ids = {r["custom_id"] for r in requests}
@@ -48,7 +48,7 @@ def test_build_batch_requests_carries_cached_system_and_docs(
     claims: list[Claim], docs: list[DocSection]
 ) -> None:
     """Every batch request reuses the cached system prompt + doc corpus."""
-    requests = build_batch_requests(claims, docs, model="claude-sonnet-4-6")
+    requests = build_batch_requests(claims, docs, model="claude-sonnet-5")
 
     for req in requests:
         params = req["params"]
@@ -152,7 +152,7 @@ async def test_analyze_claims_batch_end_to_end(
     client.messages.batches.retrieve = AsyncMock(return_value=MagicMock(id="batch-1", processing_status="ended"))
     client.messages.batches.results = MagicMock(side_effect=_fake_results_iter)
 
-    with patch("analyzer.batch_runner.get_analysis_model", return_value="claude-sonnet-4-6"):
+    with patch("analyzer.batch_runner.get_analysis_model", return_value="claude-sonnet-5"):
         results = await analyze_claims_batch(claims, docs, client=client, poll_interval=0)
 
     assert len(results) == 2

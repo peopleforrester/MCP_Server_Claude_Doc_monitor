@@ -478,7 +478,7 @@ async def analyze_claim(
     if client is None:
         client = anthropic.AsyncAnthropic()
 
-    # Get the configured model name (e.g., "claude-sonnet-4-6")
+    # Get the configured model name (e.g., "claude-sonnet-5")
     model = get_analysis_model(config_path)
 
     # Build the user message: all documents as citations-enabled blocks,

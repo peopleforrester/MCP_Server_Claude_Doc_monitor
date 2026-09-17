@@ -23,12 +23,17 @@ class ModelPricing:
     output_per_mtok: float
 
 
-# Pricing as of April 2026. Update when Anthropic publishes changes.
+# Pricing as of September 2026. Update when Anthropic publishes changes.
 # Source: https://platform.claude.com/docs/en/about-claude/pricing
 _PRICING: dict[str, ModelPricing] = {
+    # Current lineup
+    "claude-fable-5-1": ModelPricing(input_per_mtok=10.0, output_per_mtok=50.0),
+    "claude-opus-5": ModelPricing(input_per_mtok=5.0, output_per_mtok=25.0),
+    "claude-sonnet-5": ModelPricing(input_per_mtok=2.0, output_per_mtok=10.0),
+    "claude-haiku-4-5": ModelPricing(input_per_mtok=1.0, output_per_mtok=5.0),
+    # Legacy models, still available
     "claude-opus-4-6": ModelPricing(input_per_mtok=5.0, output_per_mtok=25.0),
     "claude-sonnet-4-6": ModelPricing(input_per_mtok=3.0, output_per_mtok=15.0),
-    "claude-haiku-4-5": ModelPricing(input_per_mtok=1.0, output_per_mtok=5.0),
 }
 
 # Conservative estimate of output tokens per claim — drift responses are terse JSON.
@@ -42,7 +47,7 @@ def model_pricing(model: str) -> ModelPricing:
     for key in _PRICING:
         if base.startswith(key):
             return _PRICING[key]
-    return _PRICING["claude-sonnet-4-6"]
+    return _PRICING["claude-sonnet-5"]
 
 
 @dataclass

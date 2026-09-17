@@ -156,13 +156,13 @@ class TestConfigDataClass:
             doc_sources={"test": "https://example.com"},
             changelog_url="https://example.com/changelog",
             fetch_timeout=30,
-            analysis_model="claude-sonnet-4-6"
+            analysis_model="claude-sonnet-5"
         )
 
         assert config.doc_sources == {"test": "https://example.com"}
         assert config.changelog_url == "https://example.com/changelog"
         assert config.fetch_timeout == 30
-        assert config.analysis_model == "claude-sonnet-4-6"
+        assert config.analysis_model == "claude-sonnet-5"
 
 
 class TestDefaultConfig:
