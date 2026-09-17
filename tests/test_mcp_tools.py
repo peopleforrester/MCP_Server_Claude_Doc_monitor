@@ -1,20 +1,22 @@
 # ABOUTME: Unit tests for MCP server documentation fetching tools.
 # ABOUTME: Tests fetch_docs, get_changelog, and search_docs functionality.
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+
 from mcp_server.tools.fetch_docs import (
-    fetch_current_docs,
-    DocSection,
     DOC_SOURCES,
+    DocSection,
+    fetch_current_docs,
 )
 from mcp_server.tools.get_changelog import (
-    get_recent_changes,
     ChangelogEntry,
+    get_recent_changes,
 )
 from mcp_server.tools.search_docs import (
-    search_docs,
     SearchResult,
+    search_docs,
 )
 
 

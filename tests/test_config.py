@@ -6,14 +6,15 @@ import logging
 from pathlib import Path
 
 import pytest
+
 from config import (
-    load_config,
-    get_doc_sources,
-    get_changelog_url,
-    get_fetch_timeout,
-    get_analysis_model,
     DEFAULT_CONFIG,
     Config,
+    get_analysis_model,
+    get_changelog_url,
+    get_doc_sources,
+    get_fetch_timeout,
+    load_config,
 )
 
 
@@ -155,13 +156,13 @@ class TestConfigDataClass:
             doc_sources={"test": "https://example.com"},
             changelog_url="https://example.com/changelog",
             fetch_timeout=30,
-            analysis_model="claude-sonnet-4-6"
+            analysis_model="claude-sonnet-5"
         )
 
         assert config.doc_sources == {"test": "https://example.com"}
         assert config.changelog_url == "https://example.com/changelog"
         assert config.fetch_timeout == 30
-        assert config.analysis_model == "claude-sonnet-4-6"
+        assert config.analysis_model == "claude-sonnet-5"
 
 
 class TestDefaultConfig:

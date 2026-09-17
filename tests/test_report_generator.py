@@ -5,12 +5,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from analyzer.report_generator import (
-    generate_report,
-    DriftReport,
-)
 from analyzer.changelog_analyzer import ChangelogImpact
 from analyzer.drift_detector import CitedEvidence, DriftResult, DriftStatus
+from analyzer.report_generator import (
+    DriftReport,
+    generate_report,
+)
 
 
 class TestGenerateReport:

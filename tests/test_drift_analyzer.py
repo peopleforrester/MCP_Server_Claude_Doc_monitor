@@ -3,16 +3,18 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from anthropic.types import TextBlock
+
 from analyzer.drift_detector import (
-    analyze_claim,
     CitedEvidence,
     DriftResult,
     DriftStatus,
     _build_document_blocks,
     _chunk_content,
+    analyze_claim,
 )
 from analyzer.input_handler import Claim
 from mcp_server.tools.fetch_docs import DocSection

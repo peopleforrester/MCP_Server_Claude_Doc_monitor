@@ -45,7 +45,11 @@ cd MCP_Server_Claude_Doc_monitor
 # Install dependencies (use --dev to include the test/lint toolchain)
 uv sync --dev
 
-# Set your API key
+# Set your API key: put it in a repo-root .env (preferred; gitignored)...
+echo 'ANTHROPIC_API_KEY=your-api-key-here' > .env
+
+# ...or export it. The CLI and MCP server load the nearest .env on startup,
+# and a .env value wins over an ambient export.
 export ANTHROPIC_API_KEY="your-api-key-here"
 
 # Run tests to verify installation
@@ -155,7 +159,7 @@ The system uses a JSON configuration file to specify documentation sources and s
   },
   "changelog_url": "https://platform.claude.com/docs/en/release-notes/overview",
   "fetch_timeout": 45,
-  "analysis_model": "claude-sonnet-4-6"
+  "analysis_model": "claude-sonnet-5"
 }
 ```
 
@@ -241,7 +245,7 @@ content-freshness-system/
 │       ├── fetch_docs.py   # Doc fetching from configured URLs
 │       ├── get_changelog.py# Changelog retrieval
 │       └── search_docs.py  # Search across documentation
-├── tests/                  # 133 unit and integration tests
+├── tests/                  # 134 unit and integration tests
 ├── assets/                 # README hero image
 ├── sample_input/           # Example training doc with outdated claims
 └── sample_output/          # Example drift report

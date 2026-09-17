@@ -1,14 +1,16 @@
 # ABOUTME: Unit tests for the input handler module.
 # ABOUTME: Tests markdown parsing and claim extraction functionality.
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from analyzer.input_handler import (
-    load_markdown_file,
-    parse_sections,
-    extract_claims,
     Claim,
     Section,
+    extract_claims,
+    load_markdown_file,
+    parse_sections,
 )
 
 

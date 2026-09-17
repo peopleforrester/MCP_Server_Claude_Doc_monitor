@@ -65,7 +65,7 @@ async def test_analyze_changelog_impact_returns_structured_impacts(
     mock_client = MagicMock()
     mock_client.messages.create = AsyncMock(return_value=mock_response)
 
-    with patch("analyzer.changelog_analyzer.get_analysis_model", return_value="claude-sonnet-4-6"):
+    with patch("analyzer.changelog_analyzer.get_analysis_model", return_value="claude-sonnet-5"):
         impacts = await analyze_changelog_impact(claims, entries, client=mock_client)
 
     assert len(impacts) == 1
@@ -102,7 +102,7 @@ async def test_analyze_changelog_impact_handles_empty_response(
     mock_client = MagicMock()
     mock_client.messages.create = AsyncMock(return_value=mock_response)
 
-    with patch("analyzer.changelog_analyzer.get_analysis_model", return_value="claude-sonnet-4-6"):
+    with patch("analyzer.changelog_analyzer.get_analysis_model", return_value="claude-sonnet-5"):
         impacts = await analyze_changelog_impact(claims, entries, client=mock_client)
 
     assert impacts == []

@@ -10,9 +10,9 @@ actually built and installed into the environment (which requires a
 unpackaged state where the documented commands silently stop existing.
 """
 
+import tomllib
 from importlib.metadata import entry_points, version
 from pathlib import Path
-import tomllib
 
 
 def _pyproject_version() -> str:

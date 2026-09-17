@@ -48,18 +48,16 @@ from dataclasses import dataclass
 # Path: Object-oriented filesystem paths for config_path parameter.
 from pathlib import Path
 
-
 # httpx: Modern async HTTP client for Python.
 import httpx
-
-# Import the HTML parser from our fetch_docs module.
-# EnhancedHTMLTextExtractor: HTML parser for extracting text content
-from mcp_server.tools.fetch_docs import EnhancedHTMLTextExtractor
 
 # Import config getter for documentation sources.
 # get_doc_sources: Returns the configured doc source URLs
 from config import get_doc_sources
 
+# Import the HTML parser from our fetch_docs module.
+# EnhancedHTMLTextExtractor: HTML parser for extracting text content
+from mcp_server.tools.fetch_docs import EnhancedHTMLTextExtractor
 
 # =============================================================================
 # DATA CLASSES

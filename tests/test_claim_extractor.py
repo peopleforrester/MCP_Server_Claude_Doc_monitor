@@ -199,7 +199,7 @@ def test_cache_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
         )
     ]
     path = _cache_path_for_content("some content")
-    _save_cached_extraction(path, claims, model="claude-sonnet-4-6")
+    _save_cached_extraction(path, claims, model="claude-sonnet-5")
 
     loaded = _load_cached_extraction(path)
     assert loaded is not None

@@ -49,19 +49,17 @@ from dataclasses import dataclass
 # - timedelta: Represents a duration (e.g., "30 days")
 from datetime import datetime, timedelta
 
-# Path: Object-oriented filesystem paths for the config_path parameter.
-from pathlib import Path
-
-
 # HTMLParser: Base class for parsing HTML documents.
 from html.parser import HTMLParser
+
+# Path: Object-oriented filesystem paths for the config_path parameter.
+from pathlib import Path
 
 # httpx: Modern async HTTP client for Python.
 import httpx
 
 # Import configuration functions from our config module.
-from config import get_changelog_url, get_fetch_timeout, DEFAULT_CONFIG
-
+from config import DEFAULT_CONFIG, get_changelog_url, get_fetch_timeout
 
 # =============================================================================
 # DATA CLASSES

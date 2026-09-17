@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.2.0 — 2026-09-17
+
+September 2026 currency release: both SDKs cross a major version, the
+default analysis model moves to the current generation, and the repo .env
+credential flow added in August is documented and properly declared.
+
+### Changed
+
+- **anthropic SDK 0.111 → 1.6.0** (httpx2 transport under the hood; every
+  API surface this project uses verified unchanged at runtime) and
+  **mcp 1.28 → 2.2.0** (server class renamed FastMCP → MCPServer, same
+  decorator and stdio-run surface; Tool schema fields now snake_case).
+- **Default analysis model: claude-sonnet-4-6 → claude-sonnet-5**, its
+  successor per the published models overview (verified 2026-09-17).
+  Sonnet 5 is also cheaper: USD 2/10 per MTok versus 3/15.
+- **Cost estimator pricing table** refreshed to the current lineup
+  (Fable 5.1, Opus 5, Sonnet 5, Haiku 4.5) with the still-available
+  legacy entries retained; unknown models now price at the current
+  default.
+- Dev toolchain: mypy 2.3, pytest 9.1.1, ruff 0.16 (rule set now pinned
+  explicitly), click 8.5, tqdm 4.70. CLI tests migrated off Click's
+  deprecated `isolated_filesystem`.
+
+### Fixed
+
+- **python-dotenv declared as a direct dependency.** The CLI and MCP
+  server import it for repo .env loading (added 2026-08-24) but it only
+  arrived transitively, which a future mcp release could have dropped.
+- README now documents the .env credential flow: the nearest .env is
+  loaded on startup and wins over ambient exports.
+
 ## 1.1.2 — 2026-07-04
 
 ### Fixed
