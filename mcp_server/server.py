@@ -1,4 +1,4 @@
-# ABOUTME: FastMCP server exposing drift detection, doc search, and changelog lookup as MCP tools.
+# ABOUTME: MCP server exposing drift detection, doc search, and changelog lookup as MCP tools.
 # ABOUTME: Runs over stdio by default so Claude Code / Desktop can invoke the tools locally.
 
 from __future__ import annotations
@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv as _load_dotenv
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from analyzer.batch_runner import analyze_claims_batch
 from analyzer.claim_extractor import extract_claims_with_llm
@@ -29,7 +29,7 @@ for _d in [Path.cwd(), *Path.cwd().parents]:
 
 logger = logging.getLogger(__name__)
 
-mcp = FastMCP("DocMonitor")
+mcp = MCPServer("DocMonitor")
 
 
 async def _fetch_all_docs() -> list[DocSection]:

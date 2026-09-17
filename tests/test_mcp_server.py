@@ -29,7 +29,7 @@ async def test_check_drift_tool_describes_input() -> None:
     """check_drift must take a markdown string input — surfaced to the LLM."""
     tools = await mcp.list_tools()
     check_drift = next(t for t in tools if t.name == "check_drift")
-    schema_props = check_drift.inputSchema.get("properties", {})
+    schema_props = check_drift.input_schema.get("properties", {})
     assert "markdown" in schema_props
 
 
@@ -38,7 +38,7 @@ async def test_search_docs_tool_describes_input() -> None:
     """search_docs must take a query string."""
     tools = await mcp.list_tools()
     search = next(t for t in tools if t.name == "search_docs")
-    schema_props = search.inputSchema.get("properties", {})
+    schema_props = search.input_schema.get("properties", {})
     assert "query" in schema_props
 
 
@@ -47,7 +47,7 @@ async def test_get_changelog_tool_describes_days() -> None:
     """get_changelog must accept a days lookback."""
     tools = await mcp.list_tools()
     changelog = next(t for t in tools if t.name == "get_changelog")
-    schema_props = changelog.inputSchema.get("properties", {})
+    schema_props = changelog.input_schema.get("properties", {})
     assert "days" in schema_props
 
 
@@ -55,7 +55,7 @@ async def test_get_changelog_tool_describes_days() -> None:
 async def test_docs_resource_registered() -> None:
     """docs://{topic} must be registered as a resource template."""
     templates = await mcp.list_resource_templates()
-    uris = {str(t.uriTemplate) for t in templates}
+    uris = {str(t.uri_template) for t in templates}
     assert any("docs://" in uri for uri in uris)
 
 

@@ -47,9 +47,6 @@ import logging
 # We use sys.exit() to set the exit code on error.
 import sys
 
-# anthropic: The official SDK for calling the API.
-import anthropic
-
 # importlib.metadata: Standard library access to installed package metadata.
 # Used to read the version recorded at install time from pyproject.toml,
 # which remains the single source of truth.
@@ -59,6 +56,8 @@ from importlib.metadata import version as _package_version
 # Used for input file and config file handling.
 from pathlib import Path
 
+# anthropic: The official SDK for calling the API.
+import anthropic
 
 # click: Third-party library for building command-line interfaces.
 # It provides decorators for defining commands, arguments, and options.
@@ -108,42 +107,45 @@ __version__ = _read_version()
 # - parse_sections: Split into sections by headers
 # - extract_claims: Find capability statements
 # - Claim: Data class for extracted claims
-from analyzer.input_handler import load_markdown_file, parse_sections, extract_claims, Claim
-
-# Claude-based extraction (default path); regex extract_claims remains available via --fast.
-from analyzer.claim_extractor import extract_claims_with_llm
-
-# Drift detection: Analyze claims using Claude.
-# - analyze_claim: Compare one claim against docs
-# - DriftResult: Data class for analysis results
-from analyzer.drift_detector import analyze_claim, DriftResult
+from tqdm.asyncio import tqdm_asyncio
 
 # Opt-in batch processing path: trades latency for ~10x cost savings via 50%
 # batch discount + 1h prompt cache on system prompt and doc corpus.
 from analyzer.batch_runner import analyze_claims_batch
 
+# Changelog cross-reference: flag claims hit by recent deprecations.
+from analyzer.changelog_analyzer import analyze_changelog_impact
+
+# Claude-based extraction (default path); regex extract_claims remains available via --fast.
+from analyzer.claim_extractor import extract_claims_with_llm
+
 # Pre-flight cost estimation via the free count_tokens endpoint.
 from analyzer.cost_estimator import estimate_cost
 
-# Changelog cross-reference: flag claims hit by recent deprecations.
-from analyzer.changelog_analyzer import analyze_changelog_impact
-from mcp_server.tools.get_changelog import get_recent_changes
-
-from tqdm.asyncio import tqdm_asyncio
+# Drift detection: Analyze claims using Claude.
+# - analyze_claim: Compare one claim against docs
+# - DriftResult: Data class for analysis results
+from analyzer.drift_detector import DriftResult, analyze_claim
+from analyzer.input_handler import (
+    Claim,
+    extract_claims,
+    load_markdown_file,
+    parse_sections,
+)
 
 # Report generation: Format results as markdown.
 # - generate_report: Create a DriftReport from results
 from analyzer.report_generator import generate_report
 
-# Documentation fetching: Get current Anthropic docs.
-# - fetch_current_docs: Async fetch documentation pages
-# - DocSection: Data class for doc content
-from mcp_server.tools.fetch_docs import fetch_current_docs, DocSection
-
 # Configuration: Get configured doc sources.
 # - get_doc_sources: Get the URL mapping from config
 from config import get_doc_sources
 
+# Documentation fetching: Get current Anthropic docs.
+# - fetch_current_docs: Async fetch documentation pages
+# - DocSection: Data class for doc content
+from mcp_server.tools.fetch_docs import DocSection, fetch_current_docs
+from mcp_server.tools.get_changelog import get_recent_changes
 
 # =============================================================================
 # ASYNC HELPER FUNCTIONS

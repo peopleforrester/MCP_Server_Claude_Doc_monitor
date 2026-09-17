@@ -50,7 +50,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-
 # anthropic: The official Anthropic Python SDK for calling the Claude API.
 # We use AsyncAnthropic for async/await support (non-blocking API calls).
 import anthropic
@@ -59,11 +58,11 @@ import anthropic
 # Claim: Represents an extracted claim from the input document.
 from analyzer.input_handler import Claim
 
-# DocSection: Represents a section of fetched documentation.
-from mcp_server.tools.fetch_docs import DocSection
-
 # get_analysis_model: Function to get the configured Claude model name.
 from config import get_analysis_model
+
+# DocSection: Represents a section of fetched documentation.
+from mcp_server.tools.fetch_docs import DocSection
 
 # Docs above ~80KB get chunked into multiple document content blocks.
 # The Citations API has a per-document practical ceiling; staying well under

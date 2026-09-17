@@ -6,14 +6,15 @@ import logging
 from pathlib import Path
 
 import pytest
+
 from config import (
-    load_config,
-    get_doc_sources,
-    get_changelog_url,
-    get_fetch_timeout,
-    get_analysis_model,
     DEFAULT_CONFIG,
     Config,
+    get_analysis_model,
+    get_changelog_url,
+    get_doc_sources,
+    get_fetch_timeout,
+    load_config,
 )
 
 

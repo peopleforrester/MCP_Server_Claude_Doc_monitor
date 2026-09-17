@@ -1,16 +1,19 @@
 # ABOUTME: Unit tests for the command-line interface.
 # ABOUTME: Tests argument parsing and CLI workflow.
 
+import contextlib
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
+
 from click.testing import CliRunner
+
 from cli import cli
 
 
 class TestCliArguments:
     """Tests for CLI argument parsing."""
 
-    def test_cli_requires_input_file(self) -> None:
+    def test_cli_requires_input_file(self, tmp_path: Path) -> None:
         """CLI should require an input file argument."""
         runner = CliRunner()
         result = runner.invoke(cli, [])
@@ -18,11 +21,11 @@ class TestCliArguments:
         assert result.exit_code != 0
         assert "Missing argument" in result.output or "Usage:" in result.output
 
-    def test_cli_accepts_input_file(self) -> None:
+    def test_cli_accepts_input_file(self, tmp_path: Path) -> None:
         """CLI should accept a valid input file path."""
         runner = CliRunner()
 
-        with runner.isolated_filesystem():
+        with contextlib.chdir(tmp_path):
             # Create a test file
             Path("test.md").write_text("# Test\nClaude can do things.")
 
@@ -33,11 +36,11 @@ class TestCliArguments:
         # Should not fail on argument parsing
         assert "Missing argument" not in result.output
 
-    def test_cli_accepts_output_option(self) -> None:
+    def test_cli_accepts_output_option(self, tmp_path: Path) -> None:
         """CLI should accept -o/--output option."""
         runner = CliRunner()
 
-        with runner.isolated_filesystem():
+        with contextlib.chdir(tmp_path):
             Path("test.md").write_text("# Test\nContent.")
 
             with patch("cli.run_analysis", new_callable=AsyncMock) as mock_run:
@@ -46,11 +49,11 @@ class TestCliArguments:
 
         assert result.exit_code == 0 or "Error" not in result.output
 
-    def test_cli_accepts_verbose_flag(self) -> None:
+    def test_cli_accepts_verbose_flag(self, tmp_path: Path) -> None:
         """CLI should accept --verbose flag."""
         runner = CliRunner()
 
-        with runner.isolated_filesystem():
+        with contextlib.chdir(tmp_path):
             Path("test.md").write_text("# Test")
 
             with patch("cli.run_analysis", new_callable=AsyncMock) as mock_run:
@@ -64,7 +67,7 @@ class TestCliArguments:
 class TestCliFileHandling:
     """Tests for CLI file handling."""
 
-    def test_cli_error_on_missing_input_file(self) -> None:
+    def test_cli_error_on_missing_input_file(self, tmp_path: Path) -> None:
         """CLI should error when input file doesn't exist."""
         runner = CliRunner()
 
@@ -73,11 +76,11 @@ class TestCliFileHandling:
         assert result.exit_code != 0
         assert "not found" in result.output.lower() or "error" in result.output.lower()
 
-    def test_cli_writes_to_output_file(self) -> None:
+    def test_cli_writes_to_output_file(self, tmp_path: Path) -> None:
         """CLI should write report to output file when specified."""
         runner = CliRunner()
 
-        with runner.isolated_filesystem():
+        with contextlib.chdir(tmp_path):
             Path("test.md").write_text("# Test\nClaude supports streaming.")
 
             with patch("cli.run_analysis", new_callable=AsyncMock) as mock_run:
@@ -89,11 +92,11 @@ class TestCliFileHandling:
                     content = Path("output.md").read_text()
                     assert "Drift Report" in content
 
-    def test_cli_outputs_to_stdout_by_default(self) -> None:
+    def test_cli_outputs_to_stdout_by_default(self, tmp_path: Path) -> None:
         """CLI should output to stdout when no output file specified."""
         runner = CliRunner()
 
-        with runner.isolated_filesystem():
+        with contextlib.chdir(tmp_path):
             Path("test.md").write_text("# Test")
 
             with patch("cli.run_analysis", new_callable=AsyncMock) as mock_run:
@@ -143,11 +146,11 @@ class TestCliHelp:
 class TestCliIntegration:
     """Integration tests for CLI workflow."""
 
-    def test_cli_processes_markdown_file(self) -> None:
+    def test_cli_processes_markdown_file(self, tmp_path: Path) -> None:
         """CLI should process a markdown file through the pipeline."""
         runner = CliRunner()
 
-        with runner.isolated_filesystem():
+        with contextlib.chdir(tmp_path):
             # Create input file with a claim
             Path("input.md").write_text(
                 "# API Guide\nClaude supports a 200k token context window."
@@ -165,28 +168,30 @@ class TestCliIntegration:
 class TestFastFlag:
     """Tests for --fast flag routing between LLM and regex extractors."""
 
-    def test_cli_accepts_fast_flag(self) -> None:
+    def test_cli_accepts_fast_flag(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        with runner.isolated_filesystem():
+        with contextlib.chdir(tmp_path):
             Path("test.md").write_text("# Test\nClaude can stream.")
             with patch("cli.run_analysis", new_callable=AsyncMock) as mock_run:
                 mock_run.return_value = "# Report"
                 result = runner.invoke(cli, ["test.md", "--fast"])
         assert result.exit_code == 0
         mock_run.assert_awaited_once()
+        assert mock_run.await_args is not None
         call_kwargs = mock_run.await_args.kwargs
         call_args = mock_run.await_args.args
         # Check either kwarg or positional form
         assert call_kwargs.get("fast") is True or (len(call_args) >= 4 and call_args[3] is True)
 
-    def test_cli_defaults_to_llm_extraction(self) -> None:
+    def test_cli_defaults_to_llm_extraction(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        with runner.isolated_filesystem():
+        with contextlib.chdir(tmp_path):
             Path("test.md").write_text("# Test\nClaude can stream.")
             with patch("cli.run_analysis", new_callable=AsyncMock) as mock_run:
                 mock_run.return_value = "# Report"
                 result = runner.invoke(cli, ["test.md"])
         assert result.exit_code == 0
+        assert mock_run.await_args is not None
         call_kwargs = mock_run.await_args.kwargs
         call_args = mock_run.await_args.args
         assert call_kwargs.get("fast", False) is False and (len(call_args) < 4 or call_args[3] is False)

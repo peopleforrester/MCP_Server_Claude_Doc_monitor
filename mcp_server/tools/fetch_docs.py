@@ -46,14 +46,13 @@ import asyncio
 # dataclass: Decorator for creating data container classes.
 from dataclasses import dataclass
 
-# Path: Object-oriented filesystem paths for the config_path parameter.
-from pathlib import Path
-
-
 # HTMLParser: Base class for parsing HTML documents.
 # Part of Python's standard library. We subclass it to create a custom parser
 # that extracts text content from HTML in a specific way.
 from html.parser import HTMLParser
+
+# Path: Object-oriented filesystem paths for the config_path parameter.
+from pathlib import Path
 
 # httpx: Modern async-capable HTTP client for Python.
 # We use it instead of requests because:
@@ -66,8 +65,7 @@ import httpx
 # get_doc_sources: Returns the mapping of topic names to URLs
 # get_fetch_timeout: Returns the timeout in seconds
 # DEFAULT_CONFIG: The default configuration dict (for backwards compatibility)
-from config import get_doc_sources, get_fetch_timeout, DEFAULT_CONFIG
-
+from config import DEFAULT_CONFIG, get_doc_sources, get_fetch_timeout
 
 # =============================================================================
 # DATA CLASSES
