@@ -23,12 +23,17 @@ Key Components:
 - ChangelogParser: Custom HTML parser for changelog-specific structure
 - get_recent_changes: Main async function to fetch and filter entries
 
-The Anthropic changelog typically has entries like:
+The Anthropic changelog has used two layouts. The older one:
     ## 2024-01-15
     ### New Feature
     Description of the new feature...
 
-Our parser looks for these patterns to extract structured data.
+The current release notes page (platform.claude.com) instead uses an h3
+written-out date per entry, with the changes as list items:
+    ### October 14, 2026
+    - We've launched ...
+
+Our parser recognizes both layouts.
 """
 
 # =============================================================================
@@ -107,6 +112,25 @@ CHANGELOG_URL = DEFAULT_CONFIG["changelog_url"]
 
 
 # =============================================================================
+# DATE HEADINGS
+# =============================================================================
+
+def _parse_written_date(text: str) -> str | None:
+    """
+    Convert a written-out date such as "October 14, 2026" to "2026-10-14".
+
+    Returns None when the whole text is not such a date, so a heading that
+    merely mentions a date ("Deprecation on March 3, 2026") is not mistaken
+    for a date header.
+    """
+    try:
+        parsed = datetime.strptime(text.strip(), "%B %d, %Y").replace(tzinfo=UTC)
+    except ValueError:
+        return None
+    return parsed.strftime("%Y-%m-%d")
+
+
+# =============================================================================
 # CHANGELOG PARSER
 # =============================================================================
 
@@ -115,18 +139,24 @@ class ChangelogParser(HTMLParser):
     Parser for extracting changelog entries from HTML.
 
     This specialized parser understands the structure of the Anthropic
-    changelog page. It expects a format like:
+    changelog page. It accepts the older layout:
 
         <h2>2024-01-15</h2>          <- Date header
         <h3>New Feature</h3>          <- Entry title
         <p>Description here...</p>    <- Entry description
 
-    The parser collects entries as it encounters this pattern.
+    and the current one:
+
+        <h3>October 14, 2026</h3>     <- Date header
+        <li>We've launched ...</li>   <- Entry description
+
+    The parser collects entries as it encounters these patterns.
 
     State Machine:
-    - Initial state: Looking for h2 date header
-    - After h2: Collecting entry data until next h2
-    - h3/h4 become titles, p becomes description
+    - Initial state: Looking for a date header (any h2, or an h3 whose
+      whole text is a written-out date)
+    - After a date header: Collecting entry data until the next one
+    - Other h3/h4 become titles, p and li become description
 
     Implementation Notes:
     - We track state with in_date/in_content booleans
@@ -155,8 +185,9 @@ class ChangelogParser(HTMLParser):
         # Collector for text content of current element
         self.current_text: list[str] = []
 
-        # Tags to skip (navigation, scripts, etc.)
-        self.skip_tags = {"script", "style", "nav", "footer"}
+        # Tags to skip (navigation, scripts, etc.). The release notes put a
+        # copy-link button with an icon glyph inside each date heading.
+        self.skip_tags = {"script", "style", "nav", "footer", "button"}
         self.skip_depth = 0
 
     def handle_starttag(self, tag: str, attrs: list) -> None:
@@ -185,14 +216,13 @@ class ChangelogParser(HTMLParser):
             self.in_date = True
             self.current_text = []
 
-        # h3 and h4 mark entry titles
-        elif tag in ("h3", "h4") and self.current_entry:
+        # h3 and h4 mark entry titles, or (h3 only) a date header in the
+        # current layout. Which one is decided from the text at the end tag,
+        # so collect it even before the first entry exists.
+        # p and li tags contain description text, once an entry has begun.
+        elif tag in ("h3", "h4") or (tag in ("p", "li") and self.current_entry):
             self.in_content = True
             self.current_text = []
-
-        # p tags contain description text
-        elif tag == "p" and self.current_entry:
-            self.in_content = True
 
     def handle_endtag(self, tag: str) -> None:
         """
@@ -224,24 +254,33 @@ class ChangelogParser(HTMLParser):
                 # Found a properly formatted date
                 self.current_entry["date"] = date_match.group()
             else:
-                # No standard date format - use first 10 chars as fallback
-                # This handles cases like "January 15, 2024"
-                self.current_entry["date"] = text[:10] if text else ""
+                # Written-out date like "January 15, 2024", else keep the
+                # first 10 chars as the old parser did
+                self.current_entry["date"] = (
+                    _parse_written_date(text) or (text[:10] if text else "")
+                )
 
-        # End of title (h3/h4)
+        # End of h3/h4: a date header (current layout) or an entry title
         elif tag in ("h3", "h4") and self.in_content:
             self.in_content = False
 
             # Join collected text
             text = " ".join(self.current_text).strip()
+            written_date = _parse_written_date(text) if tag == "h3" else None
+
+            if written_date:
+                # A dated h3 starts a new entry, like an h2 does
+                if self.current_entry:
+                    self.entries.append(self.current_entry)
+                self.current_entry = {"date": written_date}
 
             # Only set title if we don't have one yet
             # (first h3/h4 after the date becomes the title)
-            if text and "title" not in self.current_entry:
+            elif text and self.current_entry and "title" not in self.current_entry:
                 self.current_entry["title"] = text
 
-        # End of paragraph - append to description
-        elif tag == "p" and self.in_content:
+        # End of paragraph or list item - append to description
+        elif tag in ("p", "li") and self.in_content:
             self.in_content = False
 
             text = " ".join(self.current_text).strip()
