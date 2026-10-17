@@ -13,6 +13,7 @@ from mcp_server.tools.fetch_docs import (
 )
 from mcp_server.tools.get_changelog import (
     ChangelogEntry,
+    ChangelogParser,
     _is_within_days,
     get_recent_changes,
 )
@@ -154,6 +155,93 @@ class TestGetRecentChanges:
             result = await get_recent_changes(days=30)
 
         assert result == []
+
+    @pytest.mark.asyncio
+    async def test_get_changes_reads_current_release_notes_layout(self) -> None:
+        """Should read h3 written-out dates with list-item changes."""
+        recent = datetime.now(UTC) - timedelta(days=2)
+        heading = f"{recent:%B} {recent.day}, {recent.year}"
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = f"""
+        <html><body>
+        <h1>Claude Platform release notes</h1>
+        <h3 id="d">{heading}<span><button></button></span></h3>
+        <ul><li>We've launched feature X.</li></ul>
+        <h3 id="old">January 5, 2020</h3>
+        <ul><li>Old change.</li></ul>
+        </body></html>
+        """
+
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_response
+            result = await get_recent_changes(days=30)
+
+        assert [(e.date, e.description) for e in result] == [
+            (f"{recent:%Y-%m-%d}", "We've launched feature X.")
+        ]
+
+
+class TestChangelogParser:
+    """Tests for ChangelogParser across the changelog layouts."""
+
+    def _parse(self, html: str) -> list[dict]:
+        parser = ChangelogParser()
+        parser.feed(html)
+        return parser.get_entries()
+
+    def test_h2_iso_date_with_title_and_paragraphs(self) -> None:
+        """The older layout: h2 ISO date, h3 title, p description."""
+        entries = self._parse(
+            "<h2>2026-01-15</h2><h3>New Feature</h3>"
+            "<p>First part.</p><p>Second part.</p>"
+        )
+
+        assert entries == [{
+            "date": "2026-01-15",
+            "title": "New Feature",
+            "description": "First part. Second part.",
+        }]
+
+    def test_h2_written_date_is_converted_to_iso(self) -> None:
+        """An h2 written-out date becomes YYYY-MM-DD."""
+        entries = self._parse("<h2>January 15, 2026</h2><p>Change.</p>")
+
+        assert entries == [{"date": "2026-01-15", "description": "Change."}]
+
+    def test_h3_written_dates_start_entries(self) -> None:
+        """The current layout: each dated h3 starts an entry of list items."""
+        entries = self._parse(
+            "<h3>October 14, 2026<button></button></h3>"
+            "<ul><li>Launched A.</li></ul><ul><li>Launched B.</li></ul>"
+            "<h3>October 9, 2026</h3><ul><li>Launched C.</li></ul>"
+        )
+
+        assert entries == [
+            {"date": "2026-10-14", "description": "Launched A. Launched B."},
+            {"date": "2026-10-09", "description": "Launched C."},
+        ]
+
+    def test_h3_mentioning_a_date_stays_a_title(self) -> None:
+        """An h3 that only mentions a date is a title, not a date header."""
+        entries = self._parse(
+            "<h2>2026-01-15</h2><h3>Deprecation on March 3, 2026</h3><p>Details.</p>"
+        )
+
+        assert entries == [{
+            "date": "2026-01-15",
+            "title": "Deprecation on March 3, 2026",
+            "description": "Details.",
+        }]
+
+    def test_content_before_first_date_is_ignored(self) -> None:
+        """Headings and list items before any date header are not entries."""
+        entries = self._parse(
+            "<h3>Overview</h3><ul><li>Nav item</li></ul>"
+            "<h3>October 14, 2026</h3><ul><li>Launched A.</li></ul>"
+        )
+
+        assert entries == [{"date": "2026-10-14", "description": "Launched A."}]
 
 
 class TestChangelogEntryDataClass:
