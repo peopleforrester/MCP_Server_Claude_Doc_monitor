@@ -261,12 +261,8 @@ class EnhancedHTMLTextExtractor(HTMLParser):
             # Markdown list item with dash prefix
             self.text_parts.append("\n- ")
 
-        # Block elements that need line breaks
-        elif tag in ("p", "div"):
-            self.text_parts.append("\n")
-
-        # Explicit line break
-        elif tag == "br":
+        # Block elements and explicit line breaks
+        elif tag in ("p", "div", "br"):
             self.text_parts.append("\n")
 
     def handle_endtag(self, tag: str) -> None:
@@ -367,14 +363,17 @@ class EnhancedHTMLTextExtractor(HTMLParser):
         if self.in_heading and not self.current_title:
             self.current_title = text
 
-        # Special handling for table cell content
-        if self.in_table and self.current_row is not None:
-            # Check if we're inside a table cell (td or th)
-            # by looking at the tag stack
-            if "tr" in self.tag_stack and ("td" in self.tag_stack or "th" in self.tag_stack):
-                # Add to current row's cells
-                self.current_row.append(text)
-                return  # Don't add to text_parts (handled at row end)
+        # Special handling for table cell content: inside a table cell
+        # (td or th within a tr, per the tag stack) text goes to the row.
+        if (
+            self.in_table
+            and self.current_row is not None
+            and "tr" in self.tag_stack
+            and ("td" in self.tag_stack or "th" in self.tag_stack)
+        ):
+            # Add to current row's cells
+            self.current_row.append(text)
+            return  # Don't add to text_parts (handled at row end)
 
         # Normal content - add to text parts
         self.text_parts.append(text)

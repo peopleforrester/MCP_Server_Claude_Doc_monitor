@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import httpx
 from dotenv import load_dotenv as _load_dotenv
 from mcp.server.mcpserver import MCPServer
 
@@ -41,7 +42,7 @@ async def _fetch_all_docs() -> list[DocSection]:
     async def _one(topic: str) -> list[DocSection]:
         try:
             return await fetch_current_docs(topic)
-        except Exception as exc:
+        except httpx.HTTPError as exc:
             logger.warning("Failed to fetch topic %s: %s", topic, exc)
             return []
 

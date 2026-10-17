@@ -220,9 +220,9 @@ def load_config(config_path: Path | None = None) -> Config:
             if "analysis_model" in user_config:
                 config_data["analysis_model"] = user_config["analysis_model"]
 
-        except (json.JSONDecodeError, IOError) as e:
+        except (json.JSONDecodeError, OSError) as e:
             # json.JSONDecodeError: The file exists but isn't valid JSON
-            # IOError: Some other file reading error occurred
+            # OSError: Some other file reading error occurred
             #
             # Log a warning so users know their config isn't being used.
             # Falls back to defaults to keep the system working.

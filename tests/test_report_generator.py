@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from analyzer.changelog_analyzer import ChangelogImpact
 from analyzer.drift_detector import CitedEvidence, DriftResult, DriftStatus
@@ -51,8 +51,9 @@ class TestGenerateReport:
         report = generate_report(results, "test.md")
 
         assert report.generated_at is not None
-        # Timestamp should be recent (within last minute)
-        now = datetime.now()
+        # Timestamp should be timezone-aware and recent (within last minute)
+        assert report.generated_at.tzinfo is not None
+        now = datetime.now(UTC)
         diff = now - report.generated_at
         assert diff.total_seconds() < 60
 
@@ -166,7 +167,7 @@ class TestDriftReportDataClass:
         """DriftReport should have all required fields."""
         report = DriftReport(
             source_file="test.md",
-            generated_at=datetime.now(),
+            generated_at=datetime.now(UTC),
             results=[],
             summary={"current": 0, "outdated": 0, "potentially_stale": 0, "unverifiable": 0}
         )
@@ -180,7 +181,7 @@ class TestDriftReportDataClass:
         """to_markdown should return a string."""
         report = DriftReport(
             source_file="test.md",
-            generated_at=datetime.now(),
+            generated_at=datetime.now(UTC),
             results=[],
             summary={"current": 0, "outdated": 0, "potentially_stale": 0, "unverifiable": 0}
         )

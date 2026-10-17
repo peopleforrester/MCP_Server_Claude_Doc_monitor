@@ -1,6 +1,7 @@
 # ABOUTME: Unit tests for MCP server documentation fetching tools.
 # ABOUTME: Tests fetch_docs, get_changelog, and search_docs functionality.
 
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -12,6 +13,7 @@ from mcp_server.tools.fetch_docs import (
 )
 from mcp_server.tools.get_changelog import (
     ChangelogEntry,
+    _is_within_days,
     get_recent_changes,
 )
 from mcp_server.tools.search_docs import (
@@ -231,3 +233,35 @@ class TestSearchResultDataClass:
         assert result.snippet == "Claude supports streaming responses."
         assert result.source_url == "https://docs.anthropic.com/api"
         assert result.relevance_score == 0.85
+
+
+class TestIsWithinDays:
+    """Tests for the timezone-aware changelog date filter."""
+
+    REFERENCE = datetime(2026, 2, 1, tzinfo=UTC)
+
+    def test_recent_date_is_included(self) -> None:
+        assert _is_within_days("2026-01-15", 30, self.REFERENCE) is True
+
+    def test_old_date_is_excluded(self) -> None:
+        assert _is_within_days("2025-12-01", 30, self.REFERENCE) is False
+
+    def test_date_exactly_at_cutoff_is_included(self) -> None:
+        # Cutoff is 2026-01-02 00:00 UTC; the entry is read as midnight UTC.
+        assert _is_within_days("2026-01-02", 30, self.REFERENCE) is True
+        assert _is_within_days("2026-01-01", 30, self.REFERENCE) is False
+
+    def test_reference_in_other_zone_is_compared_in_utc(self) -> None:
+        # 2026-02-01 01:00 at UTC+5 is 2026-01-31 20:00 UTC, so the 30-day
+        # cutoff is 2026-01-01 20:00 UTC: Jan 2 is in, Jan 1 is out.
+        reference = datetime(2026, 2, 1, 1, 0, tzinfo=timezone(timedelta(hours=5)))
+        assert _is_within_days("2026-01-02", 30, reference) is True
+        assert _is_within_days("2026-01-01", 30, reference) is False
+
+    def test_default_reference_is_now_utc(self) -> None:
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
+        assert _is_within_days(today, 1) is True
+        assert _is_within_days("2000-01-01", 1) is False
+
+    def test_unparseable_date_is_included(self) -> None:
+        assert _is_within_days("not a date", 30, self.REFERENCE) is True

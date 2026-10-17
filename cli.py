@@ -64,6 +64,9 @@ import anthropic
 # Much cleaner than argparse for most use cases.
 import click
 
+# httpx: Async HTTP client; its HTTPError is what a failed doc fetch raises.
+import httpx
+
 # dotenv: Load credentials from the nearest repo .env file (override=True so
 # the project .env wins over any ambient export from ~/.keys or ~/.bashrc).
 from dotenv import load_dotenv as _load_dotenv
@@ -191,10 +194,14 @@ async def fetch_reference_docs(
     topics = list(doc_sources.keys())
 
     async def fetch_topic(topic: str) -> list[DocSection]:
-        """Fetch docs for a single topic, swallowing errors as empty lists."""
+        """Fetch docs for a single topic, treating HTTP failures as empty lists.
+
+        Only network/HTTP errors are swallowed; anything else (bad config,
+        programming errors) propagates so it fails loudly.
+        """
         try:
             return await fetch_current_docs(topic, config_path)
-        except Exception as e:
+        except httpx.HTTPError as e:
             if verbose:
                 click.echo(f"  Warning: Could not fetch {topic} docs: {e}", err=True)
             return []
@@ -265,11 +272,17 @@ async def analyze_claims(
     api_client = anthropic.AsyncAnthropic()
 
     async def analyze_single(claim: Claim) -> DriftResult | None:
-        """Analyze a single claim with semaphore-limited concurrency."""
+        """Analyze a single claim with semaphore-limited concurrency.
+
+        API errors and unusable model responses (invalid JSON, unknown status,
+        missing fields) skip the claim. Anything else, such as a missing API
+        key (a TypeError from the SDK), aborts the run instead of producing an
+        empty report.
+        """
         async with semaphore:
             try:
                 return await analyze_claim(claim, docs, config_path, client=api_client)
-            except Exception as e:
+            except (anthropic.AnthropicError, ValueError, KeyError) as e:
                 if verbose:
                     click.echo(f"  Warning: Could not analyze claim: {e}", err=True)
                 return None
@@ -427,7 +440,7 @@ async def run_analysis(
                 changelog_impacts = await analyze_changelog_impact(
                     claims, entries, config_path=config_path
                 )
-        except Exception as e:
+        except (httpx.HTTPError, anthropic.AnthropicError) as e:
             if verbose:
                 click.echo(f"  Warning: changelog cross-reference skipped: {e}", err=True)
 
@@ -594,9 +607,10 @@ def cli(
         sys.exit(1)
 
     except Exception as e:
-        # Handle any other errors
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
+        # Last-resort boundary for the CLI: report any other error as a clean
+        # "Error: ..." message with exit code 1 instead of a traceback.
+        # ClickException prints exactly that and keeps the original chained.
+        raise click.ClickException(str(e)) from e
 
 
 # =============================================================================

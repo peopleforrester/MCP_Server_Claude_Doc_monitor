@@ -286,9 +286,9 @@ async def search_docs(
     ) as client:
 
         # Search each documentation source.
-        # doc_sources is a dict mapping topic names to URLs.
-        # .items() gives us (key, value) pairs.
-        for topic, url in doc_sources.items():
+        # doc_sources is a dict mapping topic names to URLs; only the URLs
+        # are needed here, so .values() iterates them directly.
+        for url in doc_sources.values():
             try:
                 # Fetch the documentation page.
                 # await allows other requests to proceed while waiting.
