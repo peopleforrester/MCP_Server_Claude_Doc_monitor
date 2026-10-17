@@ -8,11 +8,16 @@ Training content drift detection system
 
 - **Install**: `uv sync --dev`
 - **Test**: `uv run pytest`
+- **E2E (live services)**: `uv run pytest tests_e2e`
 - **Lint**: `uv run ruff check .`
 - **Format**: `uv run ruff format .`
 - **Type check**: `uv run mypy analyzer/ mcp_server/ cli.py config.py --ignore-missing-imports`
 
 Test command: `uv sync --dev && uv run pytest && uv run ruff check . && uv run mypy analyzer/ mcp_server/ cli.py config.py --ignore-missing-imports`
+
+E2E command: `uv sync --dev && uv run pytest tests_e2e`
+
+The E2E suite (`tests_e2e/`, outside pytest's default `testpaths`) runs against live services: it fetches and parses the real docs and release notes on platform.claude.com, and it analyzes a claim with the real Claude API. It needs network access and `ANTHROPIC_API_KEY`, and fails with a clear message when the key is missing. Each run makes two small API calls.
 
 ## Where things live
 
