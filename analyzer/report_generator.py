@@ -412,10 +412,11 @@ def generate_report(
             summary["unverifiable"] += 1
 
     # Create and return the DriftReport dataclass instance.
-    # datetime.now() captures the current time for the report timestamp.
+    # The report timestamp is timezone-aware local time: .astimezone() attaches
+    # the system's local zone, so the rendered wall-clock time is unchanged.
     return DriftReport(
         source_file=source_file,
-        generated_at=datetime.now(),
+        generated_at=datetime.now().astimezone(),
         results=results,
         summary=summary,
         changelog_impacts=changelog_impacts or [],

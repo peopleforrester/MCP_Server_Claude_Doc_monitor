@@ -35,10 +35,22 @@ pythonpath = ["."]
 ignore_missing_imports = true
 
 [tool.ruff.lint]
-# Pin the rule set explicitly: pyflakes/pycodestyle errors plus import sorting.
-# Ruff 0.16 broadened its defaults (BLE, DTZ, SIM, ...); adopting those is a
-# deliberate code-change pass, not a lint-version side effect.
-select = ["E4", "E7", "E9", "F", "I"]
+# Pin the rule set explicitly so a ruff upgrade never changes the lint contract
+# on its own: pyflakes/pycodestyle errors and import sorting, plus the ruff 0.16
+# default rules that had findings here, adopted with the code changes they
+# required (narrowed excepts, timezone-aware datetimes, simplifications).
+select = [
+    "E4", "E7", "E9", "F", "I",
+    "B017",     # assert-raises-exception
+    "BLE001",   # blind-except
+    "DTZ005",   # call-datetime-now-without-tzinfo
+    "DTZ007",   # call-datetime-strptime-without-zone
+    "PERF102",  # incorrect-dict-iterator
+    "PLC0206",  # dict-index-missing-items
+    "SIM102",   # collapsible-if
+    "SIM114",   # if-with-same-arms
+    "UP024",    # os-error-alias
+]
 
 [tool.ruff.lint.per-file-ignores]
 # cli.py has version definition between standard and local imports

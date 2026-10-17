@@ -5,9 +5,13 @@ import contextlib
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+import anthropic
+import httpx
+import pytest
 from click.testing import CliRunner
 
-from cli import cli
+from analyzer.input_handler import Claim
+from cli import analyze_claims, cli, fetch_reference_docs
 
 
 class TestCliArguments:
@@ -195,3 +199,55 @@ class TestFastFlag:
         call_kwargs = mock_run.await_args.kwargs
         call_args = mock_run.await_args.args
         assert call_kwargs.get("fast", False) is False and (len(call_args) < 4 or call_args[3] is False)
+
+
+class TestErrorHandling:
+    """Expected failures are tolerated per item; unexpected ones propagate."""
+
+    _CLAIM = Claim(text="Claude can stream.", section_title="Test", line_number=1)
+
+    async def test_fetch_skips_topics_with_http_errors(self) -> None:
+        with patch(
+            "cli.fetch_current_docs",
+            new_callable=AsyncMock,
+            side_effect=httpx.ConnectError("Connection failed"),
+        ):
+            assert await fetch_reference_docs() == []
+
+    async def test_fetch_propagates_non_http_errors(self) -> None:
+        with patch(
+            "cli.fetch_current_docs",
+            new_callable=AsyncMock,
+            side_effect=ValueError("bad fetch_timeout"),
+        ), pytest.raises(ValueError, match="bad fetch_timeout"):
+            await fetch_reference_docs()
+
+    async def test_analyze_skips_claims_with_api_errors(self) -> None:
+        error = anthropic.APIConnectionError(
+            request=httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+        )
+        with patch("cli.analyze_claim", new_callable=AsyncMock, side_effect=error):
+            assert await analyze_claims([self._CLAIM], []) == []
+
+    async def test_analyze_propagates_missing_credentials(self) -> None:
+        # The SDK raises TypeError when no API key or auth token is configured;
+        # that must abort the run rather than yield an empty report.
+        with patch(
+            "cli.analyze_claim",
+            new_callable=AsyncMock,
+            side_effect=TypeError("Could not resolve authentication method"),
+        ), pytest.raises(TypeError):
+            await analyze_claims([self._CLAIM], [])
+
+    def test_cli_reports_unexpected_errors_cleanly(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        with contextlib.chdir(tmp_path):
+            Path("test.md").write_text("# Test\nClaude can stream.")
+            with patch(
+                "cli.run_analysis",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("boom"),
+            ):
+                result = runner.invoke(cli, ["test.md"])
+        assert result.exit_code == 1
+        assert "Error: boom" in result.output

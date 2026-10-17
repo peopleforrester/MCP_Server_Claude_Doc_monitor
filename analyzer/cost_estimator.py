@@ -44,9 +44,9 @@ def model_pricing(model: str) -> ModelPricing:
     """Return pricing for a model ID, falling back to Sonnet if unknown."""
     # Strip any date suffix that some callers may still include (e.g. -20260220)
     base = model
-    for key in _PRICING:
+    for key, pricing in _PRICING.items():
         if base.startswith(key):
-            return _PRICING[key]
+            return pricing
     return _PRICING["claude-sonnet-5"]
 
 

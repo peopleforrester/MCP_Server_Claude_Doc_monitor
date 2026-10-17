@@ -44,10 +44,11 @@ import re
 # dataclass: Decorator for creating data container classes.
 from dataclasses import dataclass
 
-# datetime, timedelta: For date calculations.
+# datetime, timedelta, UTC: For date calculations.
+# - UTC: The UTC time zone, so comparisons are timezone-aware
 # - datetime: Represents a specific moment in time
 # - timedelta: Represents a duration (e.g., "30 days")
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 # HTMLParser: Base class for parsing HTML documents.
 from html.parser import HTMLParser
@@ -316,8 +317,13 @@ def _is_within_days(
                   Example: "2024-01-15"
         days: Number of days to look back.
               Example: 30 means include entries from the last 30 days.
-        reference_date: The date to measure from. Defaults to now.
-                        Accepts an injectable value for deterministic testing.
+        reference_date: The timezone-aware moment to measure from. Defaults
+                        to the current time in UTC. Accepts an injectable
+                        value for deterministic testing.
+
+    Changelog dates carry no time zone; they are read as midnight UTC so the
+    comparison with the (aware) reference date is well defined and does not
+    depend on the machine's local time zone.
 
     Returns:
         True if the date is within the range (recent enough).
@@ -335,10 +341,10 @@ def _is_within_days(
         # Parse the date string into a datetime object.
         # strptime() parses a string according to a format:
         # %Y = 4-digit year, %m = 2-digit month, %d = 2-digit day
-        entry_date = datetime.strptime(date_str, "%Y-%m-%d")
+        entry_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=UTC)
 
         # Calculate the cutoff date from the reference point.
-        now = reference_date if reference_date is not None else datetime.now()
+        now = reference_date if reference_date is not None else datetime.now(UTC)
         cutoff = now - timedelta(days=days)
 
         # Check if the entry date is at or after the cutoff.

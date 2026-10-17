@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import anthropic
+import httpx
 import pytest
 from anthropic.types import TextBlock
 
@@ -239,11 +241,13 @@ class TestAnalyzeClaim:
         with patch("anthropic.AsyncAnthropic") as mock_client_class:
             mock_client = AsyncMock()
             mock_client.messages.create = AsyncMock(
-                side_effect=Exception("API error")
+                side_effect=anthropic.APIConnectionError(
+                    request=httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+                )
             )
             mock_client_class.return_value = mock_client
 
-            with pytest.raises(Exception):
+            with pytest.raises(anthropic.APIConnectionError):
                 await analyze_claim(claim, docs)
 
 
