@@ -245,7 +245,8 @@ content-freshness-system/
 │       ├── fetch_docs.py   # Doc fetching from configured URLs
 │       ├── get_changelog.py# Changelog retrieval
 │       └── search_docs.py  # Search across documentation
-├── tests/                  # 134 unit and integration tests
+├── tests/                  # 151 unit and integration tests (mocked; no network)
+├── tests_e2e/              # End-to-end tests against the live docs (no API key)
 ├── assets/                 # README hero image
 ├── sample_input/           # Example training doc with outdated claims
 └── sample_output/          # Example drift report
@@ -262,6 +263,9 @@ uv run pytest -v
 
 # Run specific test file
 uv run pytest tests/test_config.py
+
+# Run end-to-end tests (live docs and release notes; needs network, no API key)
+uv run pytest tests_e2e
 ```
 
 ## License
