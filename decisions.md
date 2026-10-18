@@ -19,3 +19,26 @@ By-hand check, after changes to `analyzer/` or the CLI pipeline: with
 `ANTHROPIC_API_KEY` exported, run
 `uv run python cli.py sample_input/outdated-training-doc.md --fast --skip-changelog`
 and confirm it exits 0 and the report lists analyzed claims with drift statuses.
+
+## 2026-10-19 · question 255: how ANTHROPIC_API_KEY reaches the API tests
+
+Question 255 (issue #30): how should `ANTHROPIC_API_KEY` reach the environment
+that runs the tests calling the real Claude API (two calls per run,
+claude-sonnet-5 on one ~12k-char doc page)?
+
+Answer: add it as a GitHub Actions repo secret and run the E2E suite in a CI
+workflow (that also means a CI workflow change for Michael). This follows the
+2026-10-14 rule that provider-key jobs run on CI, and the Engineering_Journal
+and llm-coding-workflow convention; the gate env keeps no secret.
+
+Decided by the coordinator under Michael's standing rules, not by Michael.
+
+What it changes: the two API tests from the first draft of #28 come back as
+their own suite, `tests_api/`, outside both pytest's default `testpaths` and
+the E2E command, so neither the Test command nor the keyless heavy gate ever
+needs the key. The E2E command stays `uv sync --dev && uv run pytest tests_e2e`.
+`tests_api/` fails with a clear message when the key is missing. Creating the
+`ANTHROPIC_API_KEY` repo secret and adding the CI workflow that runs
+`uv run pytest tests_e2e tests_api` with it are left to Michael (secrets and CI
+workflows wait for him). Until they land, `uv run pytest tests_api` with the key
+exported replaces the by-hand CLI check in the 2026-10-18 entry above.
